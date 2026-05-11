@@ -232,7 +232,6 @@ add_custom_command(
     -S ${MAS_DIR}/schemas/inputs/topologies/currentTransformer.json
     -S ${MAS_DIR}/schemas/inputs/topologies/boost.json
     -S ${MAS_DIR}/schemas/inputs/topologies/buck.json
-    -S ${MAS_DIR}/schemas/inputs/topologies/flybuck.json
     -S ${MAS_DIR}/schemas/inputs/topologies/forward.json
     -S ${MAS_DIR}/schemas/inputs/topologies/isolatedBuck.json
     -S ${MAS_DIR}/schemas/inputs/topologies/isolatedBuckBoost.json
@@ -240,7 +239,7 @@ add_custom_command(
     -S ${MAS_DIR}/schemas/inputs/topologies/dualActiveBridge.json
     -S ${MAS_DIR}/schemas/inputs/topologies/llcResonant.json
     -S ${MAS_DIR}/schemas/inputs/topologies/cllcResonant.json
-    -S ${MAS_DIR}/schemas/inputs/topologies/phaseShiftFullBridge.json
+    -S ${MAS_DIR}/schemas/inputs/topologies/phaseShiftedFullBridge.json
     -o ${MAS_DIRECTORY}/MAS.hpp --namespace MAS --source-style single-source --type-style pascal-case --member-style underscore-case --enumerator-style upper-underscore-case --no-boost
   USES_TERMINAL)
 

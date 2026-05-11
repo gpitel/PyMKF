@@ -17,8 +17,94 @@
 #include "converter_models/IsolatedBuckBoost.h"
 #include "converter_models/CurrentTransformer.h"
 #include "converter_models/PowerFactorCorrection.h"
+#include "constructive_models/MasMigration.h"
+
+#include <set>
+#include <unordered_map>
 
 namespace PyMKF {
+
+// ------------------------------------------------------------------
+// Topology name normalization.
+//
+// dispatch_converter() below uses legacy short forms ("flyback", "buck",
+// ...). External callers may pass:
+//   * the same short form (canonical internal),
+//   * the MAS 1.0 camelCase enum value ("flybackConverter", ...),
+//   * or the pre-1.0 Title Case label ("Flyback Converter", ...).
+//
+// Normalize all three to the internal short form so process_converter()
+// and design_magnetics_from_converter() transparently accept any of them.
+// ------------------------------------------------------------------
+static std::string normalize_topology_name(const std::string& s) {
+    static const std::set<std::string> short_forms = {
+        "flyback", "advanced_flyback",
+        "buck", "advanced_buck",
+        "boost", "advanced_boost",
+        "single_switch_forward",
+        "two_switch_forward",
+        "active_clamp_forward",
+        "push_pull",
+        "llc", "advanced_llc",
+        "cllc", "advanced_cllc",
+        "dab", "advanced_dab",
+        "phase_shifted_full_bridge", "psfb",
+        "phase_shifted_half_bridge", "pshb",
+        "isolated_buck",
+        "isolated_buck_boost",
+        "current_transformer",
+        "power_factor_correction", "pfc"
+    };
+    if (short_forms.count(s)) return s;
+
+    static const std::unordered_map<std::string, std::string> aliases = {
+        // MAS 1.0 camelCase (canonical for designRequirements.topology)
+        {"flybackConverter",                 "flyback"},
+        {"buckConverter",                    "buck"},
+        {"boostConverter",                   "boost"},
+        {"singleSwitchForwardConverter",     "single_switch_forward"},
+        {"twoSwitchForwardConverter",        "two_switch_forward"},
+        {"activeClampForwardConverter",      "active_clamp_forward"},
+        {"pushPullConverter",                "push_pull"},
+        {"llcResonantConverter",             "llc"},
+        {"llcConverter",                     "llc"},
+        {"cllcResonantConverter",            "cllc"},
+        {"cllcConverter",                    "cllc"},
+        {"dualActiveBridgeConverter",        "dab"},
+        {"phaseShiftedFullBridgeConverter",  "phase_shifted_full_bridge"},
+        {"phaseShiftedHalfBridgeConverter",  "phase_shifted_half_bridge"},
+        {"isolatedBuckConverter",            "isolated_buck"},
+        {"isolatedBuckBoostConverter",       "isolated_buck_boost"},
+        {"currentTransformer",               "current_transformer"},
+        {"powerFactorCorrection",            "power_factor_correction"},
+
+        // Pre-1.0 Title Case labels
+        {"Flyback Converter",                 "flyback"},
+        {"Buck Converter",                    "buck"},
+        {"Boost Converter",                   "boost"},
+        {"Single-Switch Forward Converter",   "single_switch_forward"},
+        {"Two-Switch Forward Converter",      "two_switch_forward"},
+        {"Active-Clamp Forward Converter",    "active_clamp_forward"},
+        {"Push-Pull Converter",               "push_pull"},
+        {"LLC Resonant Converter",            "llc"},
+        {"LLC Converter",                     "llc"},
+        {"CLLC Resonant Converter",           "cllc"},
+        {"Dual Active Bridge Converter",      "dab"},
+        {"Phase-Shifted Full Bridge Converter", "phase_shifted_full_bridge"},
+        {"Phase-Shifted Half Bridge Converter", "phase_shifted_half_bridge"},
+        {"Isolated Buck Converter",           "isolated_buck"},
+        {"Isolated Buck-Boost Converter",     "isolated_buck_boost"},
+        {"Current Transformer",               "current_transformer"},
+        {"Power Factor Correction",           "power_factor_correction"}
+    };
+
+    auto it = aliases.find(s);
+    if (it != aliases.end()) return it->second;
+
+    // Pass through unchanged; dispatch_converter() will throw if it is
+    // truly unknown. We never silently substitute an unrelated topology.
+    return s;
+}
 
 OpenMagnetics::Inputs process_flyback_internal(const json& converterJson, bool useNgspice) {
     OpenMagnetics::AdvancedFlyback converter(converterJson);
@@ -432,12 +518,18 @@ json process_converter_internal(const std::string& topologyName, const json& con
 }
 
 json process_converter(const std::string& topologyName, json converterJson, bool useNgspice) {
-    return process_converter_internal(topologyName, converterJson, useNgspice);
+    // Normalize topology name (accept MAS 1.0 camelCase, pre-1.0 Title Case,
+    // and the internal short form) and migrate any pre-1.0 enum strings
+    // embedded in the converter JSON (e.g. flyback "mode": "Continuous
+    // Conduction Mode" -> "continuousConductionMode") in-place.
+    std::string normalized = normalize_topology_name(topologyName);
+    OpenMagnetics::compat::migrate_pre_1_0(converterJson);
+    return process_converter_internal(normalized, converterJson, useNgspice);
 }
 
 // Simplified design_magnetics_from_converter using MKF template method
 json design_magnetics_from_converter(
-    const std::string& topologyName, 
+    const std::string& topologyNameRaw,
     json converterJson, 
     int maxResults, 
     json coreModeJson, 
@@ -445,7 +537,11 @@ json design_magnetics_from_converter(
     json weightsJson) {
     
     (void)useNgspice;  // Template method always uses ngspice
-    
+
+    // Accept MAS 1.0 camelCase, pre-1.0 Title Case, or internal short form.
+    const std::string topologyName = normalize_topology_name(topologyNameRaw);
+    OpenMagnetics::compat::migrate_pre_1_0(converterJson);
+
     try {
         OpenMagnetics::CoreAdviser::CoreAdviserModes coreMode;
         from_json(coreModeJson, coreMode);
