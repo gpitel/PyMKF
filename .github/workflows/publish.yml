@@ -10,6 +10,11 @@ on:
         required: false
         default: false
         type: boolean
+      publish_to_pypi:
+        description: 'Publish to real PyPI instead of TestPyPI (use to rebuild a failed release without recreating the GitHub release/tag)'
+        required: false
+        default: false
+        type: boolean
 
 env:
   GIT_LFS_SKIP_SMUDGE: 1  # Skip LFS to avoid bandwidth quota issues
@@ -113,14 +118,14 @@ jobs:
           CIBW_TEST_COMMAND: python -c "import PyOpenMagnetics; print(f'PyOpenMagnetics loaded successfully with {len(dir(PyOpenMagnetics))} functions')"
 
       - name: Publish Linux wheels to PyPI
-        if: github.event_name == 'release'
+        if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.publish_to_pypi)
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           password: ${{ secrets.PYPI_API_TOKEN }}
           packages-dir: wheelhouse/
 
       - name: Publish Linux wheels to TestPyPI
-        if: github.event_name == 'workflow_dispatch'
+        if: github.event_name == 'workflow_dispatch' && !inputs.publish_to_pypi
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           repository-url: https://test.pypi.org/legacy/
@@ -188,14 +193,14 @@ jobs:
         run: python -m pip install twine
 
       - name: Publish Windows wheels to PyPI
-        if: github.event_name == 'release'
+        if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.publish_to_pypi)
         run: python -m twine upload wheelhouse/*.whl
         env:
           TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
 
       - name: Publish Windows wheels to TestPyPI
-        if: github.event_name == 'workflow_dispatch'
+        if: github.event_name == 'workflow_dispatch' && !inputs.publish_to_pypi
         run: python -m twine upload --repository-url https://test.pypi.org/legacy/ wheelhouse/*.whl
         env:
           TWINE_USERNAME: __token__
@@ -273,14 +278,14 @@ jobs:
         run: python -m pip install twine
 
       - name: Publish macOS wheels to PyPI
-        if: github.event_name == 'release'
+        if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.publish_to_pypi)
         run: python -m twine upload wheelhouse/*.whl
         env:
           TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
 
       - name: Publish macOS wheels to TestPyPI
-        if: github.event_name == 'workflow_dispatch'
+        if: github.event_name == 'workflow_dispatch' && !inputs.publish_to_pypi
         run: python -m twine upload --repository-url https://test.pypi.org/legacy/ wheelhouse/*.whl
         env:
           TWINE_USERNAME: __token__
@@ -338,14 +343,14 @@ jobs:
         run: python -m build --sdist
 
       - name: Publish sdist to PyPI
-        if: github.event_name == 'release'
+        if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.publish_to_pypi)
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           password: ${{ secrets.PYPI_API_TOKEN }}
           packages-dir: dist/
 
       - name: Publish sdist to TestPyPI
-        if: github.event_name == 'workflow_dispatch'
+        if: github.event_name == 'workflow_dispatch' && !inputs.publish_to_pypi
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           repository-url: https://test.pypi.org/legacy/
