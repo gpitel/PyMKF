@@ -123,12 +123,12 @@ if(NOT LOCAL_MKF_MAS)
     set(MKF_FORCE_REFRESH "2026-04-29-extra-components")
     # Tell MKF to disable matplotplusplus and use SVG-based Painter instead
     set(INCLUDE_PYMKF ON CACHE BOOL "Build Python interface" FORCE)
-    # GIT_SUBMODULES_RECURSE pulls in CAS/EAS (added 2026-04 alongside the
+    # GIT_SUBMODULES_RECURSE pulls in CAS/PEAS (added 2026-04 alongside the
     # ExtraComponentsMode API). MAS is also a submodule of MKF but PyMKF
-    # fetches it independently below for fast-update reasons; CAS/EAS only
+    # fetches it independently below for fast-update reasons; CAS/PEAS only
     # exist as MKF submodules, so we need them populated under MKF/.
     # NOTE: we cannot use GIT_SHALLOW with GIT_SUBMODULES — shallow clone
-    # skips submodule init. Drop the shallow flag for MKF so CAS/EAS/
+    # skips submodule init. Drop the shallow flag for MKF so CAS/PEAS/
     # cci_coords are actually checked out. cci_coords MUST stay in this
     # list — the CCI generator reads from MKF/cci_coords/coordinates/.
     # MAS is fetched separately below (not a sub-fetch of MKF here) so
@@ -137,7 +137,7 @@ if(NOT LOCAL_MKF_MAS)
             GIT_REPOSITORY https://github.com/OpenMagnetics/MKF.git
             GIT_TAG main
             GIT_PROGRESS TRUE
-            GIT_SUBMODULES "CAS" "EAS" "cci_coords"
+            GIT_SUBMODULES "CAS" "PEAS" "cci_coords"
             GIT_SUBMODULES_RECURSE TRUE)
 
     message(STATUS "Fetching mas")
@@ -262,14 +262,14 @@ add_custom_target(PyMASGeneration
 
 # ──────────────────────────────────────────────────────────────────
 # CAS.hpp generation (mirrors MKF/CMakeLists.txt:419-451)
-# CAS = Capacitor Adviser Schema. EAS = Element Adviser Schema.
+# CAS = Capacitor Adviser Schema. PEAS = Power Element Adviser Schema.
 # Both are submodules of MKF (added 2026-04). MKF/Topology.h #includes
 # <CAS.hpp> for the get_extra_components_inputs API; we must generate
 # the header here so PyOpenMagnetics's TU sees it.
 # ──────────────────────────────────────────────────────────────────
 set(CAS_DIRECTORY "${CMAKE_BINARY_DIR}/CAS/")
 set(CAS_DIR "${MKF_DIR}/CAS")
-set(EAS_DIR "${MKF_DIR}/EAS")
+set(PEAS_DIR "${MKF_DIR}/PEAS")
 file(MAKE_DIRECTORY "${CAS_DIRECTORY}")
 
 add_custom_command(
@@ -277,10 +277,10 @@ add_custom_command(
   COMMAND ${CMAKE_COMMAND} -E remove -f "${CAS_DIRECTORY}/CAS.hpp"
   COMMAND quicktype -l c++ -s schema ${CAS_DIR}/schemas/inputs.json
     -S ${CAS_DIR}/schemas/inputs/designRequirements.json
-    -S ${EAS_DIR}/schemas/utils.json
-    -S ${EAS_DIR}/schemas/inputs/twoTerminalOperatingPoint.json
-    -S ${EAS_DIR}/schemas/inputs/operatingConditions.json
-    -S ${EAS_DIR}/schemas/inputs/operatingPointExcitation.json
+    -S ${PEAS_DIR}/schemas/utils.json
+    -S ${PEAS_DIR}/schemas/inputs/twoTerminalOperatingPoint.json
+    -S ${PEAS_DIR}/schemas/inputs/operatingConditions.json
+    -S ${PEAS_DIR}/schemas/inputs/operatingPointExcitation.json
     -o ${CAS_DIRECTORY}/CAS.hpp --namespace CAS --source-style single-source
     --type-style pascal-case --member-style underscore-case
     --enumerator-style upper-underscore-case --no-boost
@@ -288,10 +288,10 @@ add_custom_command(
   DEPENDS
     "${CAS_DIR}/schemas/inputs.json"
     "${CAS_DIR}/schemas/inputs/designRequirements.json"
-    "${EAS_DIR}/schemas/utils.json"
-    "${EAS_DIR}/schemas/inputs/twoTerminalOperatingPoint.json"
-    "${EAS_DIR}/schemas/inputs/operatingConditions.json"
-    "${EAS_DIR}/schemas/inputs/operatingPointExcitation.json"
+    "${PEAS_DIR}/schemas/utils.json"
+    "${PEAS_DIR}/schemas/inputs/twoTerminalOperatingPoint.json"
+    "${PEAS_DIR}/schemas/inputs/operatingConditions.json"
+    "${PEAS_DIR}/schemas/inputs/operatingPointExcitation.json"
   USES_TERMINAL)
 
 add_custom_target(PyCASGeneration
