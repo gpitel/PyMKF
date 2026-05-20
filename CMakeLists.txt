@@ -239,7 +239,20 @@ add_custom_command(
     -S ${MAS_DIR}/schemas/inputs/topologies/dualActiveBridge.json
     -S ${MAS_DIR}/schemas/inputs/topologies/llcResonant.json
     -S ${MAS_DIR}/schemas/inputs/topologies/cllcResonant.json
+    -S ${MAS_DIR}/schemas/inputs/topologies/clllcResonant.json
     -S ${MAS_DIR}/schemas/inputs/topologies/phaseShiftedFullBridge.json
+    -S ${MAS_DIR}/schemas/inputs/topologies/phaseShiftedHalfBridge.json
+    -S ${MAS_DIR}/schemas/inputs/topologies/powerFactorCorrection.json
+    -S ${MAS_DIR}/schemas/inputs/topologies/commonModeChoke.json
+    -S ${MAS_DIR}/schemas/inputs/topologies/differentialModeChoke.json
+    -S ${MAS_DIR}/schemas/inputs/topologies/asymmetricHalfBridge.json
+    -S ${MAS_DIR}/schemas/inputs/topologies/cuk.json
+    -S ${MAS_DIR}/schemas/inputs/topologies/sepic.json
+    -S ${MAS_DIR}/schemas/inputs/topologies/zeta.json
+    -S ${MAS_DIR}/schemas/inputs/topologies/weinberg.json
+    -S ${MAS_DIR}/schemas/inputs/topologies/fourSwitchBuckBoost.json
+    -S ${MAS_DIR}/schemas/inputs/topologies/seriesResonant.json
+    -S ${MAS_DIR}/schemas/inputs/topologies/vienna.json
     -o ${MAS_DIRECTORY}/MAS.hpp --namespace MAS --source-style single-source --type-style pascal-case --member-style underscore-case --enumerator-style upper-underscore-case --no-boost
   USES_TERMINAL)
 
