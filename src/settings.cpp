@@ -161,6 +161,9 @@ json get_settings() {
         settingsJson["coreAdviserIncludeMargin"] = OpenMagnetics::settings.get_core_adviser_include_margin();
         settingsJson["coreAdviserEnableIntermediatePruning"] = OpenMagnetics::settings.get_core_adviser_enable_intermediate_pruning();
         settingsJson["coreAdviserMaximumMagneticsAfterFiltering"] = OpenMagnetics::settings.get_core_adviser_maximum_magnetics_after_filtering();
+        settingsJson["coreAdviserEnableTemperatureFilter"] = OpenMagnetics::settings.get_core_adviser_enable_temperature_filter();
+        settingsJson["coreAdviserMaximumTemperature"] = OpenMagnetics::settings.get_core_adviser_maximum_temperature();
+        settingsJson["coreAdviserSaturationMargin"] = OpenMagnetics::settings.get_core_adviser_saturation_margin();
         {
             json aux;
             to_json(aux, OpenMagnetics::settings.get_gapping_strategy());
@@ -347,6 +350,9 @@ void set_settings(json settingsJson) {
         if (settingsJson.contains("coreAdviserIncludeMargin")) OpenMagnetics::settings.set_core_adviser_include_margin(settingsJson["coreAdviserIncludeMargin"]);
         if (settingsJson.contains("coreAdviserEnableIntermediatePruning")) OpenMagnetics::settings.set_core_adviser_enable_intermediate_pruning(settingsJson["coreAdviserEnableIntermediatePruning"]);
         if (settingsJson.contains("coreAdviserMaximumMagneticsAfterFiltering")) OpenMagnetics::settings.set_core_adviser_maximum_magnetics_after_filtering(settingsJson["coreAdviserMaximumMagneticsAfterFiltering"]);
+        if (settingsJson.contains("coreAdviserEnableTemperatureFilter")) OpenMagnetics::settings.set_core_adviser_enable_temperature_filter(settingsJson["coreAdviserEnableTemperatureFilter"]);
+        if (settingsJson.contains("coreAdviserMaximumTemperature")) OpenMagnetics::settings.set_core_adviser_maximum_temperature(settingsJson["coreAdviserMaximumTemperature"]);
+        if (settingsJson.contains("coreAdviserSaturationMargin")) OpenMagnetics::settings.set_core_adviser_saturation_margin(settingsJson["coreAdviserSaturationMargin"]);
         if (settingsJson.contains("gappingStrategy")) {
             GappingOptimizationStrategy strategy;
             from_json(settingsJson["gappingStrategy"], strategy);
