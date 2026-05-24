@@ -816,18 +816,22 @@ json design_magnetics_from_converter(
         std::vector<std::pair<OpenMagnetics::Mas, double>> masMagnetics;
         
         // Use MKF template method - handles all converters automatically.
-        // For topologies that ship an Advanced* subclass (Flyback / Buck /
-        // Boost), dispatch to the Advanced* constructor so the spec's
-        // `desiredInductance` / `desiredTurnsRatios` are honoured as the
-        // design target. The basic ctors set only a *minimum* L (a
-        // ripple-floor constraint) and pick the smallest core satisfying
-        // it — Heaviside's realism gate then fails inductor_isat_margin
-        // because the chosen core is much smaller than the spec asked
-        // for. The same dispatch pattern lives in
-        // process_flyback_internal (used by process_converter); this
-        // mirrors it for design_magnetics_from_converter.
+        // For Buck / Boost the basic process_design_requirements() sets
+        // only `magnetizingInductance.minimum` (a ripple-floor), and
+        // the CoreAdviser picks the smallest core satisfying it
+        // regardless of the L the user asked for. Dispatch to the
+        // Advanced* subclass so spec.desiredInductance becomes the
+        // nominal target (AdvancedBuck/Boost::process_design_requirements
+        // override does this, MKF commit 8acd72c7).
+        //
+        // Flyback stays on the basic ctor: AdvancedFlyback's from_json
+        // requires extra fields (desiredDutyCycle, desiredTurnsRatios)
+        // that aren't in a normal converter spec. The basic
+        // Flyback::process_design_requirements already sets nominal
+        // from its V·s + duty-cycle derivation, so the magnetic gets
+        // sized correctly without the Advanced* path.
         if (topologyName == "flyback" || topologyName == "advanced_flyback") {
-            OpenMagnetics::AdvancedFlyback converter(converterJson);
+            OpenMagnetics::Flyback converter(converterJson);
             converter._assertErrors = true;
             masMagnetics = weights.empty()
                 ? magneticAdviser.get_advised_magnetic_from_converter(converter, maxResults)
