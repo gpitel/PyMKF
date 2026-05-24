@@ -399,6 +399,14 @@ double calculate_saturation_current(json magneticJson, double temperature) {
     return magnetic.calculate_saturation_current(temperature);
 }
 
+double calculate_saturation_current_at_operating_point(
+    json magneticJson, json operatingPointJson, double temperature) {
+    OpenMagnetics::Magnetic magnetic(magneticJson);
+    MAS::OperatingPoint op;
+    from_json(operatingPointJson, op);
+    return magnetic.calculate_saturation_current(op, temperature);
+}
+
 double calculate_temperature_from_core_thermal_resistance(json coreJson, double totalLosses) {
     OpenMagnetics::Core core(coreJson);
     
@@ -893,16 +901,41 @@ void register_core_bindings(py::module& m) {
         )pbdoc",
         py::arg("core_data_json"), py::arg("operating_point_json"));
     
+    m.def("calculate_saturation_current_at_operating_point",
+        &calculate_saturation_current_at_operating_point,
+        R"pbdoc(
+        Saturation current at a specific operating point.
+
+        Identical identity to ``calculate_saturation_current`` —
+        ``I_sat = B_sat(T) · N · A_e / L`` — but L is the inductance
+        the magnetic realises at the supplied operating point (with
+        DC-bias rolloff of the core's permeability). Use this when
+        the caller is comparing I_sat against an I_peak derived from
+        the same operating point: both numbers stay on the same
+        operating footing.
+
+        Args:
+            magnetic_json: JSON Magnetic object (core + coil).
+            operating_point_json: JSON OperatingPoint object with at
+                least one winding excitation.
+            temperature: Operating temperature in Celsius.
+
+        Returns:
+            Saturation current in Amperes.
+        )pbdoc",
+        py::arg("magnetic_json"), py::arg("operating_point_json"),
+        py::arg("temperature"));
+
     m.def("calculate_saturation_current", &calculate_saturation_current,
         R"pbdoc(
         Calculate saturation current for a complete magnetic.
-        
+
         The current at which core reaches saturation flux density.
-        
+
         Args:
             magnetic_json: JSON Magnetic object (core + coil).
             temperature: Operating temperature in Celsius.
-        
+
         Returns:
             Saturation current in Amperes.
         )pbdoc",
