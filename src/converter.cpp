@@ -26,6 +26,8 @@
 #include "converter_models/Vienna.h"
 #include "converter_models/Clllc.h"
 #include "converter_models/Src.h"
+#include "converter_models/CommonModeChoke.h"
+#include "converter_models/DifferentialModeChoke.h"
 #include "constructive_models/MasMigration.h"
 
 #include <set>
@@ -1248,6 +1250,13 @@ void apply_spice_simulation_config(TopologyT& topology, const json& cfgJson) {
         auto it = cfgJson.find(k);
         if (it != cfgJson.end() && it->is_number()) dst = it->get<double>();
     };
+    // Overload for fields that recently switched to std::optional<double> in
+    // MAS (e.g. snubRReal). If JSON provides a value we set it; otherwise the
+    // optional keeps its existing state (Topology default).
+    auto take_od = [&](const char* k, std::optional<double>& dst) {
+        auto it = cfgJson.find(k);
+        if (it != cfgJson.end() && it->is_number()) dst = it->get<double>();
+    };
     auto take_i = [&](const char* k, int& dst) {
         auto it = cfgJson.find(k);
         if (it != cfgJson.end() && it->is_number_integer()) dst = it->get<int>();
@@ -1265,7 +1274,7 @@ void apply_spice_simulation_config(TopologyT& topology, const json& cfgJson) {
     take_d("swModelROFF",                    cfg.swModelROFF);
     take_d("snubR",                          cfg.snubR);
     take_d("snubC",                          cfg.snubC);
-    take_d("snubRReal",                      cfg.snubRReal);
+    take_od("snubRReal",                     cfg.snubRReal);
     take_d("diodeIS",                        cfg.diodeIS);
     take_d("diodeRS",                        cfg.diodeRS);
     take_d("outputCapacitance",              cfg.outputCapacitance);
@@ -1481,6 +1490,364 @@ json get_extra_components_inputs(const std::string& topologyName,
     }
 }
 
+// ============================================================================
+// Converter input parity aliases (Phase B port from WebLibMKF 2026-05).
+// WASM exposes `calculate_<topology>_inputs(json)` and
+// `calculate_advanced_<topology>_inputs(json)` per topology; PyMKF's
+// `process_converter("<topology>", json, true)` already covers the same
+// dispatch, so each alias is a one-line forward. Diagnostic-only fields
+// added by WASM (per-OP duty cycle / peak current / etc.) are intentionally
+// omitted — they're for wizard display, not for the magnetics adviser.
+// ============================================================================
+
+#define DEFINE_CONVERTER_ALIAS(fn_name, topology) \
+    json fn_name(json converterJson) { return process_converter(topology, converterJson, true); }
+
+DEFINE_CONVERTER_ALIAS(calculate_flyback_inputs, "flyback")
+DEFINE_CONVERTER_ALIAS(calculate_advanced_flyback_inputs, "advanced_flyback")
+DEFINE_CONVERTER_ALIAS(calculate_buck_inputs, "buck")
+DEFINE_CONVERTER_ALIAS(calculate_advanced_buck_inputs, "advanced_buck")
+DEFINE_CONVERTER_ALIAS(calculate_boost_inputs, "boost")
+DEFINE_CONVERTER_ALIAS(calculate_advanced_boost_inputs, "advanced_boost")
+DEFINE_CONVERTER_ALIAS(calculate_single_switch_forward_inputs, "single_switch_forward")
+DEFINE_CONVERTER_ALIAS(calculate_advanced_single_switch_forward_inputs, "single_switch_forward")
+DEFINE_CONVERTER_ALIAS(calculate_two_switch_forward_inputs, "two_switch_forward")
+DEFINE_CONVERTER_ALIAS(calculate_advanced_two_switch_forward_inputs, "two_switch_forward")
+DEFINE_CONVERTER_ALIAS(calculate_active_clamp_forward_inputs, "active_clamp_forward")
+DEFINE_CONVERTER_ALIAS(calculate_advanced_active_clamp_forward_inputs, "active_clamp_forward")
+DEFINE_CONVERTER_ALIAS(calculate_push_pull_inputs, "push_pull")
+DEFINE_CONVERTER_ALIAS(calculate_advanced_push_pull_inputs, "push_pull")
+DEFINE_CONVERTER_ALIAS(calculate_isolated_buck_inputs, "isolated_buck")
+DEFINE_CONVERTER_ALIAS(calculate_advanced_isolated_buck_inputs, "isolated_buck")
+DEFINE_CONVERTER_ALIAS(calculate_isolated_buck_boost_inputs, "isolated_buck_boost")
+DEFINE_CONVERTER_ALIAS(calculate_advanced_isolated_buck_boost_inputs, "isolated_buck_boost")
+DEFINE_CONVERTER_ALIAS(calculate_cuk_inputs, "cuk")
+DEFINE_CONVERTER_ALIAS(calculate_advanced_cuk_inputs, "advanced_cuk")
+DEFINE_CONVERTER_ALIAS(calculate_sepic_inputs, "sepic")
+DEFINE_CONVERTER_ALIAS(calculate_advanced_sepic_inputs, "advanced_sepic")
+DEFINE_CONVERTER_ALIAS(calculate_zeta_inputs, "zeta")
+DEFINE_CONVERTER_ALIAS(calculate_advanced_zeta_inputs, "advanced_zeta")
+DEFINE_CONVERTER_ALIAS(calculate_four_switch_buck_boost_inputs, "four_switch_buck_boost")
+DEFINE_CONVERTER_ALIAS(calculate_advanced_four_switch_buck_boost_inputs, "advanced_four_switch_buck_boost")
+DEFINE_CONVERTER_ALIAS(calculate_weinberg_inputs, "weinberg")
+DEFINE_CONVERTER_ALIAS(calculate_advanced_weinberg_inputs, "advanced_weinberg")
+DEFINE_CONVERTER_ALIAS(calculate_clllc_inputs, "clllc")
+DEFINE_CONVERTER_ALIAS(calculate_advanced_clllc_inputs, "advanced_clllc")
+DEFINE_CONVERTER_ALIAS(calculate_vienna_inputs, "vienna")
+DEFINE_CONVERTER_ALIAS(calculate_src_inputs, "src")
+DEFINE_CONVERTER_ALIAS(calculate_llc_inputs, "llc")
+DEFINE_CONVERTER_ALIAS(calculate_cllc_inputs, "cllc")
+DEFINE_CONVERTER_ALIAS(calculate_dab_inputs, "dab")
+DEFINE_CONVERTER_ALIAS(calculate_pfc_inputs, "power_factor_correction")
+DEFINE_CONVERTER_ALIAS(calculate_psfb_inputs, "phase_shifted_full_bridge")
+DEFINE_CONVERTER_ALIAS(calculate_pshb_inputs, "phase_shifted_half_bridge")
+DEFINE_CONVERTER_ALIAS(calculate_ahb_inputs, "asymmetric_half_bridge")
+
+#undef DEFINE_CONVERTER_ALIAS
+
+// ============================================================================
+// Common-Mode / Differential-Mode Choke wrappers (parity port from WebLibMKF
+// 2026-05). Each wrapper mirrors the same-named function in
+// `/home/alf/OpenMagnetics/WebLibMKF/src/libMKF.cpp`. Per-period waveform
+// repetition (only used by the display layer) is intentionally dropped —
+// the asgard adviser only needs a single period.
+// ============================================================================
+
+json calculate_cmc_inputs(json cmcInputsJson) {
+    try {
+        OpenMagnetics::CommonModeChoke cmcInputs(cmcInputsJson);
+
+        size_t numberOfPeriods = 1;
+        if (cmcInputsJson.contains("numberOfPeriods")) {
+            numberOfPeriods = cmcInputsJson["numberOfPeriods"].get<size_t>();
+        }
+        cmcInputs.set_num_periods_to_extract(numberOfPeriods);
+
+        auto inputs = cmcInputs.process();
+        json result;
+        to_json(result, inputs);
+
+        json diag;
+        diag["computedInductance"] = cmcInputs.get_computed_inductance();
+        result["cmcDiagnostics"] = diag;
+        return result;
+    }
+    catch (const std::exception& exc) {
+        return json{{"error", std::string("calculate_cmc_inputs: ") + exc.what()}};
+    }
+}
+
+json calculate_advanced_cmc_inputs(json cmcInputsJson) {
+    try {
+        OpenMagnetics::AdvancedCommonModeChoke cmcInputs(cmcInputsJson);
+
+        size_t numberOfPeriods = 1;
+        if (cmcInputsJson.contains("numberOfPeriods")) {
+            numberOfPeriods = cmcInputsJson["numberOfPeriods"].get<size_t>();
+        }
+        cmcInputs.set_num_periods_to_extract(numberOfPeriods);
+
+        auto inputs = cmcInputs.process();
+        json result;
+        to_json(result, inputs);
+
+        json diag;
+        diag["computedInductance"] = cmcInputs.get_computed_inductance();
+        result["cmcDiagnostics"] = diag;
+        return result;
+    }
+    catch (const std::exception& exc) {
+        return json{{"error", std::string("calculate_advanced_cmc_inputs: ") + exc.what()}};
+    }
+}
+
+std::string generate_cmc_ngspice_circuit(json cmcInputsJson) {
+    try {
+        bool isAdvancedCmc = cmcInputsJson.contains("desiredInductance");
+
+        std::unique_ptr<OpenMagnetics::CommonModeChoke> cmcPtr;
+        double inductance;
+        double frequency = 150000;
+
+        if (isAdvancedCmc) {
+            auto advanced = std::make_unique<OpenMagnetics::AdvancedCommonModeChoke>(cmcInputsJson);
+            inductance = advanced->get_desired_inductance();
+            cmcPtr = std::move(advanced);
+        }
+        else {
+            cmcPtr = std::make_unique<OpenMagnetics::CommonModeChoke>(cmcInputsJson);
+            auto designRequirements = cmcPtr->process_design_requirements();
+            inductance = OpenMagnetics::resolve_dimensional_values(designRequirements.get_magnetizing_inductance());
+            if (!(inductance > 0)) {
+                throw std::runtime_error("Unable to calculate CMC inductance");
+            }
+        }
+
+        return cmcPtr->generate_ngspice_circuit(inductance, frequency);
+    }
+    catch (const std::exception& exc) {
+        return "Exception: " + std::string{exc.what()};
+    }
+}
+
+json simulate_cmc_lisn_waveforms(json cmcInputsJson, double inductance) {
+    try {
+        OpenMagnetics::CommonModeChoke cmc(cmcInputsJson);
+        auto designRequirements = cmc.process_design_requirements();
+
+        std::vector<double> frequencies;
+        if (cmcInputsJson.contains("impedancePoints") && cmcInputsJson["impedancePoints"].is_array()) {
+            for (const auto& point : cmcInputsJson["impedancePoints"]) {
+                if (point.contains("frequency")) {
+                    frequencies.push_back(point["frequency"].get<double>());
+                }
+            }
+        }
+        if (frequencies.empty()) {
+            frequencies.push_back(150000);
+        }
+
+        auto waveforms = cmc.simulate_and_extract_waveforms(inductance, frequencies);
+        auto operatingPoints = cmc.simulate_and_extract_operating_points(inductance);
+
+        json result;
+        json inputs;
+        inputs["designRequirements"] = json();
+        to_json(inputs["designRequirements"], designRequirements);
+        inputs["operatingPoints"] = json::array();
+        for (const auto& op : operatingPoints) {
+            json opJson;
+            to_json(opJson, op);
+            inputs["operatingPoints"].push_back(opJson);
+        }
+        result["inputs"] = inputs;
+
+        result["converterWaveforms"] = json::array();
+        for (const auto& wf : waveforms) {
+            json cwJson;
+            cwJson["frequency"] = wf.frequency;
+            cwJson["time"] = wf.time;
+            cwJson["inputVoltage"] = wf.inputVoltage;
+            cwJson["windingCurrents"] = wf.windingCurrents;
+            cwJson["lisnVoltage"] = wf.lisnVoltage;
+            cwJson["operatingPointName"] = wf.operatingPointName;
+            cwJson["commonModeAttenuation"] = wf.commonModeAttenuation;
+            cwJson["commonModeImpedance"] = wf.commonModeImpedance;
+            cwJson["theoreticalImpedance"] = wf.theoreticalImpedance;
+            result["converterWaveforms"].push_back(cwJson);
+        }
+        return result;
+    }
+    catch (const std::exception& exc) {
+        return json{{"error", std::string("simulate_cmc_lisn_waveforms: ") + exc.what()}};
+    }
+}
+
+json simulate_cmc_ideal_waveforms(json cmcInputsJson, double inductance, double parasiticCap_pF, double dvdt_V_ns) {
+    try {
+        OpenMagnetics::CommonModeChoke cmc(cmcInputsJson);
+        auto designRequirements = cmc.process_design_requirements();
+
+        int numberOfPeriods            = cmcInputsJson.value("numberOfPeriods", 2);
+        int numberOfSteadyStatePeriods = cmcInputsJson.value("numberOfSteadyStatePeriods", 10);
+
+        auto operatingPoints = cmc.simulate_realistic_cmc(
+            inductance, parasiticCap_pF, dvdt_V_ns,
+            numberOfPeriods, numberOfSteadyStatePeriods);
+
+        json result;
+        json inputs;
+        inputs["designRequirements"] = json();
+        to_json(inputs["designRequirements"], designRequirements);
+        inputs["operatingPoints"] = json::array();
+        for (const auto& op : operatingPoints) {
+            json opJson;
+            to_json(opJson, op);
+            inputs["operatingPoints"].push_back(opJson);
+        }
+        result["inputs"] = inputs;
+        result["converterWaveforms"] = json::array();
+
+        cmc.process();
+        json diag;
+        diag["computedInductance"] = cmc.get_computed_inductance();
+        result["cmcDiagnostics"] = diag;
+        return result;
+    }
+    catch (const std::exception& exc) {
+        return json{{"error", std::string("simulate_cmc_ideal_waveforms: ") + exc.what()}};
+    }
+}
+
+json calculate_dmc_inputs(json dmcInputsJson) {
+    try {
+        OpenMagnetics::DifferentialModeChoke dmcInputs(dmcInputsJson);
+        auto inputs = dmcInputs.process();
+        json result;
+        to_json(result, inputs);
+
+        json diag;
+        diag["computedInductance"]      = dmcInputs.get_computed_inductance();
+        diag["computedMinFrequency"]    = dmcInputs.get_computed_min_frequency();
+        diag["computedMaxFrequency"]    = dmcInputs.get_computed_max_frequency();
+        diag["impedanceAtMinFrequency"] = dmcInputs.get_computed_impedance_at_min_freq();
+        diag["numberWindings"]          = dmcInputs.get_computed_number_windings();
+        result["dmcDiagnostics"] = diag;
+        return result;
+    }
+    catch (const std::exception& exc) {
+        return json{{"error", std::string("calculate_dmc_inputs: ") + exc.what()}};
+    }
+}
+
+json verify_dmc_attenuation(json dmcInputsJson, double inductance, double capacitance) {
+    try {
+        OpenMagnetics::DifferentialModeChoke dmc(dmcInputsJson);
+
+        std::optional<double> cap = (capacitance > 0) ? std::optional<double>(capacitance) : std::nullopt;
+        auto results = dmc.verify_attenuation(inductance, cap);
+
+        json result = json::array();
+        for (const auto& r : results) {
+            json rJson;
+            rJson["frequency"] = r.frequency;
+            rJson["requiredAttenuation"] = r.requiredAttenuation;
+            rJson["measuredAttenuation"] = r.measuredAttenuation;
+            rJson["theoreticalAttenuation"] = r.theoreticalAttenuation;
+            rJson["passed"] = r.passed;
+            rJson["message"] = r.message;
+            result.push_back(rJson);
+        }
+        return result;
+    }
+    catch (const std::exception& exc) {
+        return json{{"error", std::string("verify_dmc_attenuation: ") + exc.what()}};
+    }
+}
+
+json propose_dmc_design(json dmcInputsJson) {
+    try {
+        OpenMagnetics::DifferentialModeChoke dmc(dmcInputsJson);
+        return dmc.propose_design();
+    }
+    catch (const std::exception& exc) {
+        return json{{"error", std::string("propose_dmc_design: ") + exc.what()}};
+    }
+}
+
+json simulate_dmc_waveforms(json dmcInputsJson, double inductance) {
+    try {
+        OpenMagnetics::DifferentialModeChoke dmc(dmcInputsJson);
+
+        std::vector<double> frequencies;
+        auto minimumImpedance = dmc.get_minimum_impedance();
+        if (minimumImpedance) {
+            for (const auto& imp : *minimumImpedance) {
+                frequencies.push_back(imp.get_frequency());
+            }
+        }
+        if (frequencies.empty()) {
+            frequencies = {150000, 500000, 1000000, 10000000, 30000000};
+        }
+
+        size_t numberOfPeriods = 1;
+        if (dmcInputsJson.contains("numberOfPeriods")) {
+            numberOfPeriods = dmcInputsJson["numberOfPeriods"].get<size_t>();
+        }
+
+        auto waveforms = dmc.simulate_and_extract_waveforms(inductance, frequencies, numberOfPeriods);
+
+        json result = json::array();
+        for (const auto& wf : waveforms) {
+            json wfJson;
+            wfJson["time"] = wf.time;
+            wfJson["frequency"] = wf.frequency;
+            wfJson["inputVoltage"] = wf.inputVoltage;
+            wfJson["outputVoltage"] = wf.outputVoltage;
+            wfJson["inductorCurrent"] = wf.inductorCurrent;
+            wfJson["operatingPointName"] = wf.operatingPointName;
+            wfJson["dmAttenuation"] = wf.dmAttenuation;
+            result.push_back(wfJson);
+        }
+        return result;
+    }
+    catch (const std::exception& exc) {
+        return json{{"error", std::string("simulate_dmc_waveforms: ") + exc.what()}};
+    }
+}
+
+std::string generate_dmc_ngspice_circuit(json dmcInputsJson) {
+    try {
+        OpenMagnetics::DifferentialModeChoke dmc(dmcInputsJson);
+
+        // Inductance: prefer explicit `minimumInductance` from the wizard,
+        // fall back to propose_design()'s proposal. Mirrors WASM
+        // generate_dmc_ngspice_circuit at libMKF.cpp:8113-8136.
+        double inductance;
+        if (dmcInputsJson.contains("minimumInductance") && dmcInputsJson["minimumInductance"].is_number()) {
+            inductance = dmcInputsJson["minimumInductance"].get<double>();
+        }
+        else {
+            auto proposal = dmc.propose_design();
+            if (proposal.contains("inductance") && proposal["inductance"].is_number()) {
+                inductance = proposal["inductance"].get<double>();
+            }
+            else if (proposal.contains("minimumInductance") && proposal["minimumInductance"].is_number()) {
+                inductance = proposal["minimumInductance"].get<double>();
+            }
+            else {
+                throw std::runtime_error("Unable to determine DMC inductance for SPICE generation");
+            }
+        }
+
+        constexpr double kDmcSpiceTestFrequency = 150000.0;
+        return dmc.generate_ngspice_circuit(inductance, kDmcSpiceTestFrequency);
+    }
+    catch (const std::exception& exc) {
+        return "Exception: " + std::string{exc.what()};
+    }
+}
+
 void register_converter_bindings(py::module& m) {
     m.def("process_converter", &process_converter,
         "Process a converter topology specification to Inputs.",
@@ -1539,6 +1906,96 @@ void register_converter_bindings(py::module& m) {
         "leakage / DCR / etc.",
         py::arg("topology_name"), py::arg("converter_json"),
         py::arg("mode") = "IDEAL", py::arg("magnetic_json") = nullptr);
+
+    // Converter input parity aliases — same dispatch as process_converter but
+    // exposed under the WASM-canonical name so frontend code that calls
+    // `calculate_<topology>_inputs(...)` works against PyOM unchanged.
+    #define BIND_CONVERTER_ALIAS(fn) m.def(#fn, &fn, "Topology inputs builder (WASM parity alias).", py::arg("inputs"))
+    BIND_CONVERTER_ALIAS(calculate_flyback_inputs);
+    BIND_CONVERTER_ALIAS(calculate_advanced_flyback_inputs);
+    BIND_CONVERTER_ALIAS(calculate_buck_inputs);
+    BIND_CONVERTER_ALIAS(calculate_advanced_buck_inputs);
+    BIND_CONVERTER_ALIAS(calculate_boost_inputs);
+    BIND_CONVERTER_ALIAS(calculate_advanced_boost_inputs);
+    BIND_CONVERTER_ALIAS(calculate_single_switch_forward_inputs);
+    BIND_CONVERTER_ALIAS(calculate_advanced_single_switch_forward_inputs);
+    BIND_CONVERTER_ALIAS(calculate_two_switch_forward_inputs);
+    BIND_CONVERTER_ALIAS(calculate_advanced_two_switch_forward_inputs);
+    BIND_CONVERTER_ALIAS(calculate_active_clamp_forward_inputs);
+    BIND_CONVERTER_ALIAS(calculate_advanced_active_clamp_forward_inputs);
+    BIND_CONVERTER_ALIAS(calculate_push_pull_inputs);
+    BIND_CONVERTER_ALIAS(calculate_advanced_push_pull_inputs);
+    BIND_CONVERTER_ALIAS(calculate_isolated_buck_inputs);
+    BIND_CONVERTER_ALIAS(calculate_advanced_isolated_buck_inputs);
+    BIND_CONVERTER_ALIAS(calculate_isolated_buck_boost_inputs);
+    BIND_CONVERTER_ALIAS(calculate_advanced_isolated_buck_boost_inputs);
+    BIND_CONVERTER_ALIAS(calculate_cuk_inputs);
+    BIND_CONVERTER_ALIAS(calculate_advanced_cuk_inputs);
+    BIND_CONVERTER_ALIAS(calculate_sepic_inputs);
+    BIND_CONVERTER_ALIAS(calculate_advanced_sepic_inputs);
+    BIND_CONVERTER_ALIAS(calculate_zeta_inputs);
+    BIND_CONVERTER_ALIAS(calculate_advanced_zeta_inputs);
+    BIND_CONVERTER_ALIAS(calculate_four_switch_buck_boost_inputs);
+    BIND_CONVERTER_ALIAS(calculate_advanced_four_switch_buck_boost_inputs);
+    BIND_CONVERTER_ALIAS(calculate_weinberg_inputs);
+    BIND_CONVERTER_ALIAS(calculate_advanced_weinberg_inputs);
+    BIND_CONVERTER_ALIAS(calculate_clllc_inputs);
+    BIND_CONVERTER_ALIAS(calculate_advanced_clllc_inputs);
+    BIND_CONVERTER_ALIAS(calculate_vienna_inputs);
+    BIND_CONVERTER_ALIAS(calculate_src_inputs);
+    BIND_CONVERTER_ALIAS(calculate_llc_inputs);
+    BIND_CONVERTER_ALIAS(calculate_cllc_inputs);
+    BIND_CONVERTER_ALIAS(calculate_dab_inputs);
+    BIND_CONVERTER_ALIAS(calculate_pfc_inputs);
+    BIND_CONVERTER_ALIAS(calculate_psfb_inputs);
+    BIND_CONVERTER_ALIAS(calculate_pshb_inputs);
+    BIND_CONVERTER_ALIAS(calculate_ahb_inputs);
+    #undef BIND_CONVERTER_ALIAS
+
+    // CMC / DMC wrappers (parity with WebLibMKF). See definitions above.
+    m.def("calculate_cmc_inputs", &calculate_cmc_inputs,
+        "Build MAS Inputs (designRequirements + operatingPoints) for a CMC from "
+        "wizard params (operatingVoltage, operatingCurrent, lineFrequency, "
+        "numberOfWindings, and an impedance/insertion-loss/noise spec). Mirrors "
+        "the WASM `calculate_cmc_inputs` used by el-choker's CMC wizard.",
+        py::arg("cmc_inputs"));
+    m.def("calculate_advanced_cmc_inputs", &calculate_advanced_cmc_inputs,
+        "Advanced-mode CMC inputs builder (user supplies `desiredInductance` + "
+        "`designFrequency` directly rather than a spec).",
+        py::arg("cmc_inputs"));
+    m.def("generate_cmc_ngspice_circuit", &generate_cmc_ngspice_circuit,
+        "Generate the ngspice SPICE deck for a CMC at its design inductance.",
+        py::arg("cmc_inputs"));
+    m.def("simulate_cmc_lisn_waveforms", &simulate_cmc_lisn_waveforms,
+        "Run the CISPR-standard LISN test simulation against the CMC at the "
+        "requested impedance points. Returns the input MAS plus per-frequency "
+        "waveforms (input voltage, winding currents, LISN voltage, CM attenuation).",
+        py::arg("cmc_inputs"), py::arg("inductance"));
+    m.def("simulate_cmc_ideal_waveforms", &simulate_cmc_ideal_waveforms,
+        "Realistic CMC operating-point simulation: line voltage + switching "
+        "noise (parametrised by parasitic capacitance / dV/dt). Mirrors the WASM "
+        "function used by el-choker to produce operating points the MagneticAdviser "
+        "needs to score loss-aware filters.",
+        py::arg("cmc_inputs"), py::arg("inductance"),
+        py::arg("parasitic_capacitance_pF") = 10.0, py::arg("dvdt_V_per_ns") = 50.0);
+    m.def("calculate_dmc_inputs", &calculate_dmc_inputs,
+        "Build MAS Inputs for a DMC from wizard params (differential-mode equivalent "
+        "of calculate_cmc_inputs).",
+        py::arg("dmc_inputs"));
+    m.def("verify_dmc_attenuation", &verify_dmc_attenuation,
+        "Verify a DMC + filter capacitor pair meets the user attenuation spec.",
+        py::arg("dmc_inputs"), py::arg("inductance"), py::arg("capacitance") = 0.0);
+    m.def("propose_dmc_design", &propose_dmc_design,
+        "Propose a DMC inductance / capacitance pair satisfying the spec.",
+        py::arg("dmc_inputs"));
+    m.def("simulate_dmc_waveforms", &simulate_dmc_waveforms,
+        "Simulate DMC time-domain waveforms (input/output voltage, inductor "
+        "current, DM attenuation) at the EMI test frequencies.",
+        py::arg("dmc_inputs"), py::arg("inductance"));
+    m.def("generate_dmc_ngspice_circuit", &generate_dmc_ngspice_circuit,
+        "Generate the ngspice SPICE deck for a DMC. Reads minimumInductance from "
+        "the inputs JSON or falls back to propose_design().",
+        py::arg("dmc_inputs"));
 }
 
 } // namespace PyMKF
