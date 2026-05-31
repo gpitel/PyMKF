@@ -22,15 +22,24 @@ env:
 jobs:
   # Build and publish Linux wheels independently
   build_and_publish_linux:
-    name: Build and Publish Linux wheels
+    name: Build and Publish Linux wheels (${{ matrix.python }})
     runs-on: ubuntu-22.04
+    # Each matrix job builds a single CPython version. Building all four
+    # (cp310-cp313) sequentially in one job exceeded the runner's window and
+    # was killed mid-compile (exit 143). One version per parallel job keeps
+    # each job short and well under any timeout.
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        python: [cp310, cp311, cp312, cp313]
     environment:
       name: pypi
       url: https://pypi.org/p/pyopenmagnetics
     permissions:
       id-token: write  # Required for trusted publishing
     if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
-    
+
     steps:
       - uses: actions/checkout@v4
         with:
@@ -40,9 +49,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/cibuildwheel
-          key: cibuildwheel-linux-${{ hashFiles('**/pyproject.toml') }}
+          key: cibuildwheel-linux-${{ matrix.python }}-${{ hashFiles('**/pyproject.toml') }}
           restore-keys: |
-            cibuildwheel-linux-
+            cibuildwheel-linux-${{ matrix.python }}-
 
       - name: Cache npm
         uses: actions/cache@v4
@@ -101,7 +110,7 @@ jobs:
       - name: Build wheels
         run: python -m cibuildwheel --output-dir wheelhouse
         env:
-          CIBW_BUILD: cp310-* cp311-* cp312-* cp313-*
+          CIBW_BUILD: ${{ matrix.python }}-*
           CIBW_SKIP: "*-win32 *-manylinux_i686 *musllinux* pp*"
           CIBW_MANYLINUX_X86_64_IMAGE: manylinux_2_28
           CIBW_BEFORE_ALL_LINUX: |
@@ -134,15 +143,20 @@ jobs:
 
   # Build and publish Windows wheels independently
   build_and_publish_windows:
-    name: Build and Publish Windows wheels
+    name: Build and Publish Windows wheels (${{ matrix.python }})
     runs-on: windows-2022
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        python: [cp310, cp311, cp312, cp313]
     environment:
       name: pypi
       url: https://pypi.org/p/pyopenmagnetics
     permissions:
       id-token: write  # Required for trusted publishing
     if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
-    
+
     steps:
       - uses: actions/checkout@v4
         with:
@@ -152,9 +166,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: C:\Users\runneradmin\AppData\Local\pypa\cibuildwheel\Cache
-          key: cibuildwheel-windows-${{ hashFiles('**/pyproject.toml') }}
+          key: cibuildwheel-windows-${{ matrix.python }}-${{ hashFiles('**/pyproject.toml') }}
           restore-keys: |
-            cibuildwheel-windows-
+            cibuildwheel-windows-${{ matrix.python }}-
 
       - name: Cache npm
         uses: actions/cache@v4
@@ -183,7 +197,7 @@ jobs:
       - name: Build wheels
         run: python -m cibuildwheel --output-dir wheelhouse
         env:
-          CIBW_BUILD: cp310-* cp311-* cp312-* cp313-*
+          CIBW_BUILD: ${{ matrix.python }}-*
           CIBW_SKIP: "*-win32 *-manylinux_i686 *musllinux* pp*"
           CIBW_BEFORE_ALL_WINDOWS: npm install -g quicktype
           CIBW_BEFORE_BUILD: pip install --default-timeout=60 --retries 5 scikit-build-core "cmake<4" ninja pybind11
@@ -208,16 +222,21 @@ jobs:
 
   # Build and publish macOS wheels independently
   build_and_publish_macos:
-    name: Build and Publish macOS wheels
+    name: Build and Publish macOS wheels (${{ matrix.python }})
     runs-on: macos-15
+    timeout-minutes: 120
     continue-on-error: true  # Allow macOS to fail without blocking
+    strategy:
+      fail-fast: false
+      matrix:
+        python: [cp310, cp311, cp312, cp313]
     environment:
       name: pypi
       url: https://pypi.org/p/pyopenmagnetics
     permissions:
       id-token: write  # Required for trusted publishing
     if: (github.event_name == 'release' || github.event_name == 'workflow_dispatch') && (github.event_name != 'workflow_dispatch' || !inputs.skip_macos)
-    
+
     steps:
       - uses: actions/checkout@v4
         with:
@@ -227,9 +246,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/Library/Caches/cibuildwheel
-          key: cibuildwheel-macos-${{ hashFiles('**/pyproject.toml') }}
+          key: cibuildwheel-macos-${{ matrix.python }}-${{ hashFiles('**/pyproject.toml') }}
           restore-keys: |
-            cibuildwheel-macos-
+            cibuildwheel-macos-${{ matrix.python }}-
 
       - name: Cache npm
         uses: actions/cache@v4
@@ -263,7 +282,7 @@ jobs:
       - name: Build wheels
         run: python -m cibuildwheel --output-dir wheelhouse
         env:
-          CIBW_BUILD: cp310-* cp311-* cp312-* cp313-*
+          CIBW_BUILD: ${{ matrix.python }}-*
           CIBW_SKIP: "*-win32 *-manylinux_i686 *musllinux* pp*"
           CIBW_BEFORE_ALL_MACOS: |
             for i in {1..5}; do
