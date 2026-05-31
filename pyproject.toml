@@ -62,7 +62,10 @@ before-all = [
   "npm --version",
   "npm install -g quicktype@23.0.170"
 ]
-environment = { GIT_LFS_SKIP_SMUDGE=1, CMAKE_BUILD_PARALLEL_LEVEL="3" }
+# Parallel level 2 (not 3): two large pybind11 TUs compiling at once stays
+# within the runner's RAM. Combined with dropping -g (see CMakeLists.txt),
+# this avoids the OOM that recycled the runner mid-compile (exit 143).
+environment = { GIT_LFS_SKIP_SMUDGE=1, CMAKE_BUILD_PARALLEL_LEVEL="2" }
 
 [tool.cibuildwheel.macos]
 before-all = "npm --version && npm install -g quicktype@23.0.170"

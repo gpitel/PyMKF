@@ -31,8 +31,14 @@ else ()
     # Enable Link Time Optimization to reduce binary size
     set(CMAKE_INTERPROCEDURAL_OPTIMIZATION FALSE)  # TEMP: disable LTO (OOM)
 
-    # Debug build: keep symbols and frame pointers for gdb backtraces.
-    set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -O1 -g -fno-omit-frame-pointer")
+    # Wheel/CI build: -O1 keeps compilation fast and low-memory. -g is
+    # intentionally dropped — full debug info on the large pybind11 + json
+    # translation units (converter.cpp is ~6k lines) balloons RAM during
+    # compile and OOM-kills CI runners (exit 143). Frame pointers are kept
+    # for usable backtraces. We REPLACE (not append) the flags so the -g in
+    # the default RelWithDebInfo flags is stripped too. For local debugging
+    # with symbols, re-add -g here.
+    set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O1 -DNDEBUG -fno-omit-frame-pointer")
 endif()
 
 SET(MAS_DIRECTORY "${CMAKE_BINARY_DIR}/MAS/")
