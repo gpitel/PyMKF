@@ -1,6 +1,19 @@
 build/
 dist/
 venv/
+.venv/
+.venv311/
 
 *.pyc
 __pycache__/
+# LOCAL_MKF_DIR build symlinks + stray tooling — never package into the wheel
+_mkf_local
+_mas_local
+opencodetmp
+output
+.claude
+BUG.md
+PARITY_PORT_PHASES_B_C_D.md
+PyOpenMagnetics.generated.pyi
+test.svg
+test.svg_temp.svg

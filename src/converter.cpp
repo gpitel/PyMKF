@@ -941,6 +941,20 @@ json design_magnetics_from_converter(
                 ? magneticAdviser.get_advised_magnetic_from_converter(converter, maxResults)
                 : magneticAdviser.get_advised_magnetic_from_converter(converter, weights, maxResults);
         }
+        else if (topologyName == "phase_shifted_full_bridge" || topologyName == "psfb" ||
+                 topologyName == "advanced_phase_shifted_full_bridge" || topologyName == "advanced_psfb") {
+            // Use the basic Psfb converter (mirrors the AHB / LLC branches):
+            // its process_design_requirements() derives turns ratios and
+            // magnetizing inductance from the converter spec. Falling through
+            // to the generic else branch would dispatch to AdvancedPsfb, whose
+            // from_json requires desiredTurnsRatios / desiredMagnetizingInductance
+            // (the design *outputs*), which a plain converter spec does not carry.
+            OpenMagnetics::Psfb converter(converterJson);
+            converter._assertErrors = true;
+            masMagnetics = weights.empty()
+                ? magneticAdviser.get_advised_magnetic_from_converter(converter, maxResults)
+                : magneticAdviser.get_advised_magnetic_from_converter(converter, weights, maxResults);
+        }
         else if (topologyName == "weinberg" || topologyName == "advanced_weinberg") {
             OpenMagnetics::Weinberg converter(converterJson);
             converter._assertErrors = true;
@@ -964,6 +978,18 @@ json design_magnetics_from_converter(
         }
         else if (topologyName == "src" || topologyName == "advanced_src") {
             OpenMagnetics::Src converter(converterJson);
+            converter._assertErrors = true;
+            masMagnetics = weights.empty()
+                ? magneticAdviser.get_advised_magnetic_from_converter(converter, maxResults)
+                : magneticAdviser.get_advised_magnetic_from_converter(converter, weights, maxResults);
+        }
+        else if (topologyName == "dab" || topologyName == "advanced_dab" ||
+                 topologyName == "dual_active_bridge") {
+            // Use the base Dab model (mirrors llc / src / clllc above): it
+            // derives turns ratios + magnetizing inductance itself from the
+            // V1/V2 windows, so it does not require the AdvancedDab
+            // desiredTurnsRatios / desiredMagnetizingInductance inputs.
+            OpenMagnetics::Dab converter(converterJson);
             converter._assertErrors = true;
             masMagnetics = weights.empty()
                 ? magneticAdviser.get_advised_magnetic_from_converter(converter, maxResults)

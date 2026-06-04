@@ -36,6 +36,7 @@ json calculate_capacitance_models_between_windings(double energy, double voltage
 
 // Sweep functions
 json sweep_impedance_over_frequency(json magneticJson, double start, double stop, size_t numberElements, std::string mode, std::string title);
+json sweep_differential_mode_impedance_over_frequency(json magneticJson, double start, double stop, size_t numberElements, std::string mode, std::string title);
 json sweep_q_factor_over_frequency(json magneticJson, double start, double stop, size_t numberElements, std::string mode, std::string title);
 json sweep_winding_resistance_over_frequency(json magneticJson, double start, double stop, size_t numberElements, size_t windingIndex, double temperature, std::string mode, std::string title);
 json sweep_resistance_over_frequency(json magneticJson, double start, double stop, size_t numberElements, double temperature, std::string mode, std::string title);
