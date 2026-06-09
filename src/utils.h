@@ -4,7 +4,7 @@
 namespace PyMKF {
 
 // Utility functions for processing and calculations
-double resolve_dimension_with_tolerance(json dimensionWithToleranceJson);
+double resolve_dimension_with_tolerance(json dimensionWithToleranceJson, std::string preferredValue = "Nominal");
 json calculate_basic_processed_data(json waveformJson);
 json calculate_harmonics(json waveformJson, double frequency);
 json calculate_sampled_waveform(json waveformJson, double frequency);

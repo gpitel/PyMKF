@@ -2,9 +2,10 @@
 
 namespace PyMKF {
 
-double resolve_dimension_with_tolerance(json dimensionWithToleranceJson) {
+double resolve_dimension_with_tolerance(json dimensionWithToleranceJson, std::string preferredValue) {
     DimensionWithTolerance dimensionWithTolerance(dimensionWithToleranceJson);
-    return OpenMagnetics::resolve_dimensional_values(dimensionWithTolerance);
+    OpenMagnetics::DimensionalValues preferred = json(preferredValue).get<OpenMagnetics::DimensionalValues>();
+    return OpenMagnetics::resolve_dimensional_values(dimensionWithTolerance, preferred);
 }
 
 json calculate_basic_processed_data(json waveformJson) {
@@ -347,16 +348,19 @@ void register_utils_bindings(py::module& m) {
     m.def("resolve_dimension_with_tolerance", &resolve_dimension_with_tolerance,
         R"pbdoc(
         Resolve a dimension specification that may include tolerances.
-        
+
         Extracts a single value from dimension data that may contain
         nominal, minimum, and maximum values.
-        
+
         Args:
             dimension_json: JSON object with dimension specification.
-        
+            preferred: Which value to prefer when present — "Nominal" (default),
+                "Maximum", or "Minimum".
+
         Returns:
             Resolved dimension value as float.
-        )pbdoc");
+        )pbdoc",
+        py::arg("dimensionWithToleranceJson"), py::arg("preferredValue") = "Nominal");
     
     m.def("calculate_basic_processed_data", &calculate_basic_processed_data,
         R"pbdoc(
