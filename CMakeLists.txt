@@ -218,7 +218,15 @@ add_custom_command(
   OUTPUT "${MAS_DIRECTORY}/MAS.hpp"
   # Force regeneration by removing output first
   COMMAND ${CMAKE_COMMAND} -E remove -f ${MAS_DIRECTORY}/MAS.hpp
-  COMMAND quicktype -l c++ -s schema ${MAS_DIR}/schemas/MAS.json 
+  COMMAND quicktype -l c++ -s schema ${MAS_DIR}/schemas/MAS.json
+    # PEAS schemas: MAS main ($id https://psma.com/mas/...) now $refs shared
+    # PEAS primitives (https://psma.com/peas/...). quicktype resolves those
+    # external $refs by $id from sources passed with -S, so the PEAS schemas
+    # must be fed in here. PEAS is an MKF submodule at ${MKF_DIR}/PEAS.
+    -S ${MKF_DIR}/PEAS/schemas/utils.json
+    -S ${MKF_DIR}/PEAS/schemas/inputs/operatingPointExcitation.json
+    -S ${MKF_DIR}/PEAS/schemas/outputs/insulationCoordination.json
+    -S ${MKF_DIR}/PEAS/schemas/outputs/lossElementPerHarmonic.json
     -S ${MAS_DIR}/schemas/magnetic.json
     -S ${MAS_DIR}/schemas/magnetic/core.json
     -S ${MAS_DIR}/schemas/magnetic/coil.json
