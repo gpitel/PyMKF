@@ -430,6 +430,70 @@ double calculate_saturation_current_at_operating_point(
     return magnetic.calculate_saturation_current(op, temperature);
 }
 
+double calculate_peak_winding_current(json magneticJson, json operatingPointJson, int windingIndex) {
+    OpenMagnetics::Magnetic magnetic(magneticJson);
+    MAS::OperatingPoint op;
+    from_json(operatingPointJson, op);
+
+    // Operating-point magnetizing inductance of the as-designed magnetic
+    // (gapped circuit + DC-bias rolloff). Same L the saturation-current
+    // accessor uses, so I_peak and I_sat stay on a consistent footing.
+    OpenMagnetics::MagnetizingInductance magnetizingInductanceCalc;
+    auto inductanceOutput =
+        magnetizingInductanceCalc.calculate_inductance_from_number_turns_and_gapping(
+            magnetic.get_mutable_core(), magnetic.get_mutable_coil(), &op);
+    auto inductanceNominal = inductanceOutput.get_magnetizing_inductance().get_nominal();
+    if (!inductanceNominal.has_value() || inductanceNominal.value() <= 0) {
+        throw std::runtime_error(
+            "calculate_peak_winding_current: operating-point magnetizing "
+            "inductance is missing or non-positive — cannot derive the "
+            "magnetizing current.");
+    }
+    double magnetizingInductance = inductanceNominal.value();
+
+    auto excitations = op.get_mutable_excitations_per_winding();
+    if (excitations.empty()) {
+        throw std::runtime_error(
+            "calculate_peak_winding_current: operating point has no winding "
+            "excitations.");
+    }
+
+    // The magnetizing (flux-driving) current is referred to the primary
+    // (winding 0): I_mag = (1/L) ∫ v_primary dt, derived from the primary
+    // excitation's voltage. addOffset=true folds the operating DC bias of
+    // the primary current back in, so the returned peak is the saturation-
+    // driving peak (DC + ripple), not just the AC ripple amplitude.
+    auto primaryExcitation = excitations[0];
+    auto magnetizingCurrent = OpenMagnetics::Inputs::calculate_magnetizing_current(
+        primaryExcitation, magnetizingInductance, true, true);
+    auto processed = magnetizingCurrent.get_processed();
+    if (!processed.has_value() || !processed->get_peak().has_value()) {
+        throw std::runtime_error(
+            "calculate_peak_winding_current: computed magnetizing current has "
+            "no processed peak.");
+    }
+    double primaryPeak = processed->get_peak().value();
+
+    if (windingIndex == 0) {
+        return primaryPeak;
+    }
+
+    // Saturation is a single-flux core property; the magnetizing current
+    // referred to winding i is the primary-referred value scaled by the
+    // turns ratio: I_mag_i = I_mag_0 · N_0 / N_i.
+    double numberTurnsPrimary =
+        static_cast<double>(magnetic.get_mutable_coil().get_number_turns(0));
+    double numberTurnsWinding =
+        static_cast<double>(magnetic.get_mutable_coil().get_number_turns(windingIndex));
+    if (numberTurnsWinding <= 0) {
+        throw std::runtime_error(
+            "calculate_peak_winding_current: winding " +
+            std::to_string(windingIndex) + " has no turns — cannot refer the "
+            "magnetizing current to it.");
+    }
+    return primaryPeak * numberTurnsPrimary / numberTurnsWinding;
+}
+
 double calculate_temperature_from_core_thermal_resistance(json coreJson, double totalLosses) {
     OpenMagnetics::Core core(coreJson);
     
@@ -1072,6 +1136,40 @@ void register_core_bindings(py::module& m) {
         )pbdoc",
         py::arg("magnetic_json"), py::arg("operating_point_json"),
         py::arg("temperature"));
+
+    m.def("calculate_peak_winding_current",
+        &calculate_peak_winding_current,
+        R"pbdoc(
+        Peak magnetizing (flux-driving) current at an operating point.
+
+        Returns the peak of the magnetizing current — the quantity that
+        actually drives core flux and therefore saturation — for the
+        as-designed magnetic at the supplied operating point. This is the
+        consistent partner to ``calculate_saturation_current_at_operating_point``:
+        both use the same operating-point magnetizing inductance, so the
+        caller can compare I_peak against I_sat on the same footing.
+
+        The magnetizing current is computed by MKF from the primary voltage
+        waveform (``I_mag = (1/L) ∫ v dt``) with the operating DC bias folded
+        in, NOT read back from the input current. For a transformer this is
+        the genuine flux-driving current, which differs from the primary
+        winding current (the latter includes reflected load current that
+        produces no net flux).
+
+        Args:
+            magnetic_json: JSON Magnetic object (core + coil).
+            operating_point_json: JSON OperatingPoint object with at least the
+                primary winding voltage excitation.
+            winding_index: Winding the result is referred to (default 0,
+                primary). For other windings the primary-referred peak is
+                scaled by the turns ratio N_0 / N_i — saturation is a single
+                core-flux property, so this is largely a unit choice.
+
+        Returns:
+            Peak magnetizing current in Amperes.
+        )pbdoc",
+        py::arg("magnetic_json"), py::arg("operating_point_json"),
+        py::arg("winding_index") = 0);
 
     m.def("calculate_saturation_current", &calculate_saturation_current,
         R"pbdoc(

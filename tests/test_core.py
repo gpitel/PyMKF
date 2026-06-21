@@ -181,6 +181,90 @@ class TestCoreCalculations:
             assert isinstance(gapping, list)
 
 
+class TestPeakWindingCurrent:
+    """
+    Tests for calculate_peak_winding_current (ABT #16).
+
+    Verifies the binding that exposes the MKF-computed peak magnetizing
+    (flux-driving) current at an operating point, so Heaviside no longer
+    needs analytical I_peak fallbacks.
+    """
+
+    def _advise_magnetic(self, inputs):
+        proc = PyOpenMagnetics.process_inputs(inputs)
+        res = PyOpenMagnetics.calculate_advised_magnetics(proc, 1, "available cores")
+        data = json.loads(res) if isinstance(res, str) else res
+        data = data["data"] if isinstance(data, dict) and "data" in data else data
+        assert len(data) > 0, "adviser returned no magnetic"
+        mas = data[0].get("mas", data[0])
+        return mas["magnetic"], mas["inputs"]["operatingPoints"][0]
+
+    def test_inductor_peak_includes_dc_bias(self):
+        """
+        Peak magnetizing current must fold in the operating DC bias, not
+        return only the AC ripple amplitude. Input current here is a 5 A DC
+        bias with a 4 A peak-to-peak ripple.
+        """
+        op = {
+            "name": "Nominal",
+            "conditions": {"ambientTemperature": 25},
+            "excitationsPerWinding": [{
+                "frequency": 100000,
+                "current": {"waveform": {"data": [3, 7, 3],
+                                         "time": [0, 0.0000025, 0.00001]}},
+                "voltage": {"waveform": {"data": [-10, 30, 30, -10, -10],
+                                         "time": [0, 0, 0.0000025, 0.0000025, 0.00001]}},
+            }],
+        }
+        inputs = {
+            "designRequirements": {"magnetizingInductance": {"nominal": 100e-6},
+                                   "turnsRatios": []},
+            "operatingPoints": [op],
+        }
+        magnetic, op_used = self._advise_magnetic(inputs)
+
+        ipeak = PyOpenMagnetics.calculate_peak_winding_current(magnetic, op_used, 0)
+        # Default winding_index argument must match explicit 0.
+        assert ipeak == PyOpenMagnetics.calculate_peak_winding_current(magnetic, op_used)
+        assert ipeak > 0
+        # Must include the ~5 A DC bias, so well above the bare ripple amplitude.
+        assert ipeak > 4.0
+
+        # Consistent footing with I_sat at the same operating point.
+        isat = PyOpenMagnetics.calculate_saturation_current_at_operating_point(
+            magnetic, op_used, 25.0)
+        assert isat > ipeak  # an advised design should not be saturating
+
+    def test_transformer_winding_index_scales_by_turns_ratio(self):
+        """
+        For a transformer the per-winding magnetizing peak is the primary
+        value scaled by the turns ratio N_0 / N_i.
+        """
+        op = {
+            "name": "Nominal",
+            "conditions": {"ambientTemperature": 25},
+            "excitationsPerWinding": [{
+                "frequency": 100000,
+                "current": {"waveform": {"data": [-5, 5, -5],
+                                         "time": [0, 0.0000025, 0.00001]}},
+                "voltage": {"waveform": {"data": [-10, 30, 30, -10, -10],
+                                         "time": [0, 0, 0.0000025, 0.0000025, 0.00001]}},
+            }],
+        }
+        inputs = {
+            "designRequirements": {"magnetizingInductance": {"nominal": 100e-6},
+                                   "turnsRatios": [{"nominal": 2.0}]},
+            "operatingPoints": [op],
+        }
+        magnetic, op_used = self._advise_magnetic(inputs)
+        turns = [w["numberTurns"]
+                 for w in magnetic["coil"]["functionalDescription"]]
+
+        p0 = PyOpenMagnetics.calculate_peak_winding_current(magnetic, op_used, 0)
+        p1 = PyOpenMagnetics.calculate_peak_winding_current(magnetic, op_used, 1)
+        assert p1 == pytest.approx(p0 * turns[0] / turns[1], rel=1e-9)
+
+
 class TestCoreProcessedDescription:
     """Test suite for processed core descriptions."""
 
