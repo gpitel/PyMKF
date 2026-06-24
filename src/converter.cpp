@@ -171,7 +171,7 @@ static std::string normalize_topology_name(const std::string& s) {
 // (Flyback/Forward family/IsolatedBuck/…) take (turnsRatios, inductance).
 // ─────────────────────────────────────────────────────────────────────
 template <typename BaseConverter>
-OpenMagnetics::Inputs process_base_spec_scalar_L(const json& converterJson, bool useNgspice, MAS::Topologies topology) {
+OpenMagnetics::Inputs process_base_spec_scalar_L(const json& converterJson, bool useNgspice, MAS::Topology topology) {
     BaseConverter converter(converterJson);
     converter._assertErrors = true;
     if (useNgspice) {
@@ -191,7 +191,7 @@ OpenMagnetics::Inputs process_base_spec_scalar_L(const json& converterJson, bool
 }
 
 template <typename BaseConverter>
-OpenMagnetics::Inputs process_base_spec_vector_L(const json& converterJson, bool useNgspice, MAS::Topologies topology) {
+OpenMagnetics::Inputs process_base_spec_vector_L(const json& converterJson, bool useNgspice, MAS::Topology topology) {
     BaseConverter converter(converterJson);
     converter._assertErrors = true;
     if (useNgspice) {
@@ -216,7 +216,7 @@ OpenMagnetics::Inputs process_base_spec_vector_L(const json& converterJson, bool
 
 OpenMagnetics::Inputs process_flyback_internal(const json& converterJson, bool useNgspice) {
     if (!converterJson.contains("desiredInductance")) {
-        return process_base_spec_vector_L<OpenMagnetics::Flyback>(converterJson, useNgspice, MAS::Topologies::FLYBACK_CONVERTER);
+        return process_base_spec_vector_L<OpenMagnetics::Flyback>(converterJson, useNgspice, MAS::Topology::FLYBACK_CONVERTER);
     }
     OpenMagnetics::AdvancedFlyback converter(converterJson);
     converter._assertErrors = true;
@@ -238,7 +238,7 @@ OpenMagnetics::Inputs process_flyback_internal(const json& converterJson, bool u
         OpenMagnetics::DimensionWithTolerance inductanceWithTolerance;
         inductanceWithTolerance.set_nominal(inductance);
         designReqs.set_magnetizing_inductance(inductanceWithTolerance);
-        designReqs.set_topology(MAS::Topologies::FLYBACK_CONVERTER);
+        designReqs.set_topology(MAS::Topology::FLYBACK_CONVERTER);
         
         OpenMagnetics::Inputs result;
         result.set_design_requirements(designReqs);
@@ -246,14 +246,14 @@ OpenMagnetics::Inputs process_flyback_internal(const json& converterJson, bool u
         return result;
     } else {
         OpenMagnetics::Inputs result = converter.process();
-        result.get_mutable_design_requirements().set_topology(MAS::Topologies::FLYBACK_CONVERTER);
+        result.get_mutable_design_requirements().set_topology(MAS::Topology::FLYBACK_CONVERTER);
         return result;
     }
 }
 
 OpenMagnetics::Inputs process_buck_internal(const json& converterJson, bool useNgspice) {
     if (!converterJson.contains("desiredInductance")) {
-        return process_base_spec_scalar_L<OpenMagnetics::Buck>(converterJson, useNgspice, MAS::Topologies::BUCK_CONVERTER);
+        return process_base_spec_scalar_L<OpenMagnetics::Buck>(converterJson, useNgspice, MAS::Topology::BUCK_CONVERTER);
     }
     OpenMagnetics::AdvancedBuck converter(converterJson);
     converter._assertErrors = true;
@@ -265,18 +265,18 @@ OpenMagnetics::Inputs process_buck_internal(const json& converterJson, bool useN
         OpenMagnetics::Inputs result;
         result.set_design_requirements(designReqs);
         result.set_operating_points(operatingPoints);
-        result.get_mutable_design_requirements().set_topology(MAS::Topologies::BUCK_CONVERTER);
+        result.get_mutable_design_requirements().set_topology(MAS::Topology::BUCK_CONVERTER);
         return result;
     } else {
         OpenMagnetics::Inputs result = converter.process();
-        result.get_mutable_design_requirements().set_topology(MAS::Topologies::BUCK_CONVERTER);
+        result.get_mutable_design_requirements().set_topology(MAS::Topology::BUCK_CONVERTER);
         return result;
     }
 }
 
 OpenMagnetics::Inputs process_boost_internal(const json& converterJson, bool useNgspice) {
     if (!converterJson.contains("desiredInductance")) {
-        return process_base_spec_scalar_L<OpenMagnetics::Boost>(converterJson, useNgspice, MAS::Topologies::BOOST_CONVERTER);
+        return process_base_spec_scalar_L<OpenMagnetics::Boost>(converterJson, useNgspice, MAS::Topology::BOOST_CONVERTER);
     }
     OpenMagnetics::AdvancedBoost converter(converterJson);
     converter._assertErrors = true;
@@ -288,18 +288,18 @@ OpenMagnetics::Inputs process_boost_internal(const json& converterJson, bool use
         OpenMagnetics::Inputs result;
         result.set_design_requirements(designReqs);
         result.set_operating_points(operatingPoints);
-        result.get_mutable_design_requirements().set_topology(MAS::Topologies::BOOST_CONVERTER);
+        result.get_mutable_design_requirements().set_topology(MAS::Topology::BOOST_CONVERTER);
         return result;
     } else {
         OpenMagnetics::Inputs result = converter.process();
-        result.get_mutable_design_requirements().set_topology(MAS::Topologies::BOOST_CONVERTER);
+        result.get_mutable_design_requirements().set_topology(MAS::Topology::BOOST_CONVERTER);
         return result;
     }
 }
 
 OpenMagnetics::Inputs process_single_switch_forward_internal(const json& converterJson, bool useNgspice) {
     if (!converterJson.contains("desiredInductance")) {
-        return process_base_spec_vector_L<OpenMagnetics::SingleSwitchForward>(converterJson, useNgspice, MAS::Topologies::SINGLE_SWITCH_FORWARD_CONVERTER);
+        return process_base_spec_vector_L<OpenMagnetics::SingleSwitchForward>(converterJson, useNgspice, MAS::Topology::SINGLE_SWITCH_FORWARD_CONVERTER);
     }
     OpenMagnetics::AdvancedSingleSwitchForward converter(converterJson);
     converter._assertErrors = true;
@@ -315,18 +315,18 @@ OpenMagnetics::Inputs process_single_switch_forward_internal(const json& convert
         OpenMagnetics::Inputs result;
         result.set_design_requirements(designReqs);
         result.set_operating_points(operatingPoints);
-        result.get_mutable_design_requirements().set_topology(MAS::Topologies::SINGLE_SWITCH_FORWARD_CONVERTER);
+        result.get_mutable_design_requirements().set_topology(MAS::Topology::SINGLE_SWITCH_FORWARD_CONVERTER);
         return result;
     } else {
         OpenMagnetics::Inputs result = converter.process();
-        result.get_mutable_design_requirements().set_topology(MAS::Topologies::SINGLE_SWITCH_FORWARD_CONVERTER);
+        result.get_mutable_design_requirements().set_topology(MAS::Topology::SINGLE_SWITCH_FORWARD_CONVERTER);
         return result;
     }
 }
 
 OpenMagnetics::Inputs process_two_switch_forward_internal(const json& converterJson, bool useNgspice) {
     if (!converterJson.contains("desiredInductance")) {
-        return process_base_spec_vector_L<OpenMagnetics::TwoSwitchForward>(converterJson, useNgspice, MAS::Topologies::TWO_SWITCH_FORWARD_CONVERTER);
+        return process_base_spec_vector_L<OpenMagnetics::TwoSwitchForward>(converterJson, useNgspice, MAS::Topology::TWO_SWITCH_FORWARD_CONVERTER);
     }
     OpenMagnetics::AdvancedTwoSwitchForward converter(converterJson);
     converter._assertErrors = true;
@@ -342,18 +342,18 @@ OpenMagnetics::Inputs process_two_switch_forward_internal(const json& converterJ
         OpenMagnetics::Inputs result;
         result.set_design_requirements(designReqs);
         result.set_operating_points(operatingPoints);
-        result.get_mutable_design_requirements().set_topology(MAS::Topologies::TWO_SWITCH_FORWARD_CONVERTER);
+        result.get_mutable_design_requirements().set_topology(MAS::Topology::TWO_SWITCH_FORWARD_CONVERTER);
         return result;
     } else {
         OpenMagnetics::Inputs result = converter.process();
-        result.get_mutable_design_requirements().set_topology(MAS::Topologies::TWO_SWITCH_FORWARD_CONVERTER);
+        result.get_mutable_design_requirements().set_topology(MAS::Topology::TWO_SWITCH_FORWARD_CONVERTER);
         return result;
     }
 }
 
 OpenMagnetics::Inputs process_active_clamp_forward_internal(const json& converterJson, bool useNgspice) {
     if (!converterJson.contains("desiredInductance")) {
-        return process_base_spec_vector_L<OpenMagnetics::ActiveClampForward>(converterJson, useNgspice, MAS::Topologies::ACTIVE_CLAMP_FORWARD_CONVERTER);
+        return process_base_spec_vector_L<OpenMagnetics::ActiveClampForward>(converterJson, useNgspice, MAS::Topology::ACTIVE_CLAMP_FORWARD_CONVERTER);
     }
     OpenMagnetics::AdvancedActiveClampForward converter(converterJson);
     converter._assertErrors = true;
@@ -369,18 +369,18 @@ OpenMagnetics::Inputs process_active_clamp_forward_internal(const json& converte
         OpenMagnetics::Inputs result;
         result.set_design_requirements(designReqs);
         result.set_operating_points(operatingPoints);
-        result.get_mutable_design_requirements().set_topology(MAS::Topologies::ACTIVE_CLAMP_FORWARD_CONVERTER);
+        result.get_mutable_design_requirements().set_topology(MAS::Topology::ACTIVE_CLAMP_FORWARD_CONVERTER);
         return result;
     } else {
         OpenMagnetics::Inputs result = converter.process();
-        result.get_mutable_design_requirements().set_topology(MAS::Topologies::ACTIVE_CLAMP_FORWARD_CONVERTER);
+        result.get_mutable_design_requirements().set_topology(MAS::Topology::ACTIVE_CLAMP_FORWARD_CONVERTER);
         return result;
     }
 }
 
 OpenMagnetics::Inputs process_push_pull_internal(const json& converterJson, bool useNgspice) {
     if (!converterJson.contains("desiredInductance")) {
-        return process_base_spec_vector_L<OpenMagnetics::PushPull>(converterJson, useNgspice, MAS::Topologies::PUSH_PULL_CONVERTER);
+        return process_base_spec_vector_L<OpenMagnetics::PushPull>(converterJson, useNgspice, MAS::Topology::PUSH_PULL_CONVERTER);
     }
     OpenMagnetics::AdvancedPushPull converter(converterJson);
     converter._assertErrors = true;
@@ -396,11 +396,11 @@ OpenMagnetics::Inputs process_push_pull_internal(const json& converterJson, bool
         OpenMagnetics::Inputs result;
         result.set_design_requirements(designReqs);
         result.set_operating_points(operatingPoints);
-        result.get_mutable_design_requirements().set_topology(MAS::Topologies::PUSH_PULL_CONVERTER);
+        result.get_mutable_design_requirements().set_topology(MAS::Topology::PUSH_PULL_CONVERTER);
         return result;
     } else {
         OpenMagnetics::Inputs result = converter.process();
-        result.get_mutable_design_requirements().set_topology(MAS::Topologies::PUSH_PULL_CONVERTER);
+        result.get_mutable_design_requirements().set_topology(MAS::Topology::PUSH_PULL_CONVERTER);
         return result;
     }
 }
@@ -420,11 +420,11 @@ OpenMagnetics::Inputs process_llc_internal(const json& converterJson, bool useNg
         OpenMagnetics::Inputs result;
         result.set_design_requirements(designReqs);
         result.set_operating_points(operatingPoints);
-        result.get_mutable_design_requirements().set_topology(MAS::Topologies::LLC_RESONANT_CONVERTER);
+        result.get_mutable_design_requirements().set_topology(MAS::Topology::LLC_RESONANT_CONVERTER);
         return result;
     } else {
         OpenMagnetics::Inputs result = converter.process();
-        result.get_mutable_design_requirements().set_topology(MAS::Topologies::LLC_RESONANT_CONVERTER);
+        result.get_mutable_design_requirements().set_topology(MAS::Topology::LLC_RESONANT_CONVERTER);
         return result;
     }
 }
@@ -515,7 +515,7 @@ OpenMagnetics::Inputs process_pshb_internal(const json& converterJson, bool useN
 
 OpenMagnetics::Inputs process_isolated_buck_internal(const json& converterJson, bool useNgspice) {
     if (!converterJson.contains("desiredInductance")) {
-        return process_base_spec_vector_L<OpenMagnetics::IsolatedBuck>(converterJson, useNgspice, MAS::Topologies::ISOLATED_BUCK_CONVERTER);
+        return process_base_spec_vector_L<OpenMagnetics::IsolatedBuck>(converterJson, useNgspice, MAS::Topology::ISOLATED_BUCK_CONVERTER);
     }
     OpenMagnetics::AdvancedIsolatedBuck converter(converterJson);
     converter._assertErrors = true;
@@ -531,18 +531,18 @@ OpenMagnetics::Inputs process_isolated_buck_internal(const json& converterJson, 
         OpenMagnetics::Inputs result;
         result.set_design_requirements(designReqs);
         result.set_operating_points(operatingPoints);
-        result.get_mutable_design_requirements().set_topology(MAS::Topologies::ISOLATED_BUCK_CONVERTER);
+        result.get_mutable_design_requirements().set_topology(MAS::Topology::ISOLATED_BUCK_CONVERTER);
         return result;
     } else {
         OpenMagnetics::Inputs result = converter.process();
-        result.get_mutable_design_requirements().set_topology(MAS::Topologies::ISOLATED_BUCK_CONVERTER);
+        result.get_mutable_design_requirements().set_topology(MAS::Topology::ISOLATED_BUCK_CONVERTER);
         return result;
     }
 }
 
 OpenMagnetics::Inputs process_isolated_buck_boost_internal(const json& converterJson, bool useNgspice) {
     if (!converterJson.contains("desiredInductance")) {
-        return process_base_spec_vector_L<OpenMagnetics::IsolatedBuckBoost>(converterJson, useNgspice, MAS::Topologies::ISOLATED_BUCK_BOOST_CONVERTER);
+        return process_base_spec_vector_L<OpenMagnetics::IsolatedBuckBoost>(converterJson, useNgspice, MAS::Topology::ISOLATED_BUCK_BOOST_CONVERTER);
     }
     OpenMagnetics::AdvancedIsolatedBuckBoost converter(converterJson);
     converter._assertErrors = true;
@@ -558,11 +558,11 @@ OpenMagnetics::Inputs process_isolated_buck_boost_internal(const json& converter
         OpenMagnetics::Inputs result;
         result.set_design_requirements(designReqs);
         result.set_operating_points(operatingPoints);
-        result.get_mutable_design_requirements().set_topology(MAS::Topologies::ISOLATED_BUCK_BOOST_CONVERTER);
+        result.get_mutable_design_requirements().set_topology(MAS::Topology::ISOLATED_BUCK_BOOST_CONVERTER);
         return result;
     } else {
         OpenMagnetics::Inputs result = converter.process();
-        result.get_mutable_design_requirements().set_topology(MAS::Topologies::ISOLATED_BUCK_BOOST_CONVERTER);
+        result.get_mutable_design_requirements().set_topology(MAS::Topology::ISOLATED_BUCK_BOOST_CONVERTER);
         return result;
     }
 }
@@ -574,7 +574,7 @@ OpenMagnetics::Inputs process_current_transformer_internal(const json& converter
     double turnsRatio = converterJson.contains("turnsRatio") ? converterJson["turnsRatio"].get<double>() : 100.0;
     double secondaryResistance = converterJson.contains("secondaryResistance") ? converterJson["secondaryResistance"].get<double>() : 0.0;
     OpenMagnetics::Inputs result = converter.process(turnsRatio, secondaryResistance);
-    result.get_mutable_design_requirements().set_topology(MAS::Topologies::CURRENT_TRANSFORMER);
+    result.get_mutable_design_requirements().set_topology(MAS::Topology::CURRENT_TRANSFORMER);
     return result;
 }
 
@@ -604,7 +604,7 @@ OpenMagnetics::Inputs process_pfc_internal(const json& converterJson) {
 
 OpenMagnetics::Inputs process_cuk_internal(const json& converterJson, bool useNgspice) {
     if (!converterJson.contains("desiredInductance")) {
-        return process_base_spec_scalar_L<OpenMagnetics::Cuk>(converterJson, useNgspice, MAS::Topologies::CUK_CONVERTER);
+        return process_base_spec_scalar_L<OpenMagnetics::Cuk>(converterJson, useNgspice, MAS::Topology::CUK_CONVERTER);
     }
     OpenMagnetics::AdvancedCuk converter(converterJson);
     converter._assertErrors = true;
@@ -615,18 +615,18 @@ OpenMagnetics::Inputs process_cuk_internal(const json& converterJson, bool useNg
         OpenMagnetics::Inputs result;
         result.set_design_requirements(designReqs);
         result.set_operating_points(operatingPoints);
-        result.get_mutable_design_requirements().set_topology(MAS::Topologies::CUK_CONVERTER);
+        result.get_mutable_design_requirements().set_topology(MAS::Topology::CUK_CONVERTER);
         return result;
     } else {
         OpenMagnetics::Inputs result = converter.process();
-        result.get_mutable_design_requirements().set_topology(MAS::Topologies::CUK_CONVERTER);
+        result.get_mutable_design_requirements().set_topology(MAS::Topology::CUK_CONVERTER);
         return result;
     }
 }
 
 OpenMagnetics::Inputs process_sepic_internal(const json& converterJson, bool useNgspice) {
     if (!converterJson.contains("desiredInductance")) {
-        return process_base_spec_scalar_L<OpenMagnetics::Sepic>(converterJson, useNgspice, MAS::Topologies::SEPIC_CONVERTER);
+        return process_base_spec_scalar_L<OpenMagnetics::Sepic>(converterJson, useNgspice, MAS::Topology::SEPIC_CONVERTER);
     }
     OpenMagnetics::AdvancedSepic converter(converterJson);
     converter._assertErrors = true;
@@ -637,18 +637,18 @@ OpenMagnetics::Inputs process_sepic_internal(const json& converterJson, bool use
         OpenMagnetics::Inputs result;
         result.set_design_requirements(designReqs);
         result.set_operating_points(operatingPoints);
-        result.get_mutable_design_requirements().set_topology(MAS::Topologies::SEPIC_CONVERTER);
+        result.get_mutable_design_requirements().set_topology(MAS::Topology::SEPIC_CONVERTER);
         return result;
     } else {
         OpenMagnetics::Inputs result = converter.process();
-        result.get_mutable_design_requirements().set_topology(MAS::Topologies::SEPIC_CONVERTER);
+        result.get_mutable_design_requirements().set_topology(MAS::Topology::SEPIC_CONVERTER);
         return result;
     }
 }
 
 OpenMagnetics::Inputs process_zeta_internal(const json& converterJson, bool useNgspice) {
     if (!converterJson.contains("desiredInductance")) {
-        return process_base_spec_scalar_L<OpenMagnetics::Zeta>(converterJson, useNgspice, MAS::Topologies::ZETA_CONVERTER);
+        return process_base_spec_scalar_L<OpenMagnetics::Zeta>(converterJson, useNgspice, MAS::Topology::ZETA_CONVERTER);
     }
     OpenMagnetics::AdvancedZeta converter(converterJson);
     converter._assertErrors = true;
@@ -659,18 +659,18 @@ OpenMagnetics::Inputs process_zeta_internal(const json& converterJson, bool useN
         OpenMagnetics::Inputs result;
         result.set_design_requirements(designReqs);
         result.set_operating_points(operatingPoints);
-        result.get_mutable_design_requirements().set_topology(MAS::Topologies::ZETA_CONVERTER);
+        result.get_mutable_design_requirements().set_topology(MAS::Topology::ZETA_CONVERTER);
         return result;
     } else {
         OpenMagnetics::Inputs result = converter.process();
-        result.get_mutable_design_requirements().set_topology(MAS::Topologies::ZETA_CONVERTER);
+        result.get_mutable_design_requirements().set_topology(MAS::Topology::ZETA_CONVERTER);
         return result;
     }
 }
 
 OpenMagnetics::Inputs process_four_switch_buck_boost_internal(const json& converterJson, bool useNgspice) {
     if (!converterJson.contains("desiredInductance")) {
-        return process_base_spec_scalar_L<OpenMagnetics::FourSwitchBuckBoost>(converterJson, useNgspice, MAS::Topologies::FOUR_SWITCH_BUCK_BOOST_CONVERTER);
+        return process_base_spec_scalar_L<OpenMagnetics::FourSwitchBuckBoost>(converterJson, useNgspice, MAS::Topology::FOUR_SWITCH_BUCK_BOOST_CONVERTER);
     }
     OpenMagnetics::AdvancedFourSwitchBuckBoost converter(converterJson);
     converter._assertErrors = true;
@@ -681,11 +681,11 @@ OpenMagnetics::Inputs process_four_switch_buck_boost_internal(const json& conver
         OpenMagnetics::Inputs result;
         result.set_design_requirements(designReqs);
         result.set_operating_points(operatingPoints);
-        result.get_mutable_design_requirements().set_topology(MAS::Topologies::FOUR_SWITCH_BUCK_BOOST_CONVERTER);
+        result.get_mutable_design_requirements().set_topology(MAS::Topology::FOUR_SWITCH_BUCK_BOOST_CONVERTER);
         return result;
     } else {
         OpenMagnetics::Inputs result = converter.process();
-        result.get_mutable_design_requirements().set_topology(MAS::Topologies::FOUR_SWITCH_BUCK_BOOST_CONVERTER);
+        result.get_mutable_design_requirements().set_topology(MAS::Topology::FOUR_SWITCH_BUCK_BOOST_CONVERTER);
         return result;
     }
 }
@@ -704,11 +704,11 @@ OpenMagnetics::Inputs process_asymmetric_half_bridge_internal(const json& conver
         OpenMagnetics::Inputs result;
         result.set_design_requirements(designReqs);
         result.set_operating_points(operatingPoints);
-        result.get_mutable_design_requirements().set_topology(MAS::Topologies::ASYMMETRIC_HALF_BRIDGE_CONVERTER);
+        result.get_mutable_design_requirements().set_topology(MAS::Topology::ASYMMETRIC_HALF_BRIDGE_CONVERTER);
         return result;
     } else {
         OpenMagnetics::Inputs result = converter.process();
-        result.get_mutable_design_requirements().set_topology(MAS::Topologies::ASYMMETRIC_HALF_BRIDGE_CONVERTER);
+        result.get_mutable_design_requirements().set_topology(MAS::Topology::ASYMMETRIC_HALF_BRIDGE_CONVERTER);
         return result;
     }
 }
@@ -735,11 +735,11 @@ OpenMagnetics::Inputs process_weinberg_internal(const json& converterJson, bool 
             OpenMagnetics::Inputs result;
             result.set_design_requirements(designReqs);
             result.set_operating_points(operatingPoints);
-            result.get_mutable_design_requirements().set_topology(MAS::Topologies::WEINBERG_CONVERTER);
+            result.get_mutable_design_requirements().set_topology(MAS::Topology::WEINBERG_CONVERTER);
             return result;
         } else {
             OpenMagnetics::Inputs result = converter.process();
-            result.get_mutable_design_requirements().set_topology(MAS::Topologies::WEINBERG_CONVERTER);
+            result.get_mutable_design_requirements().set_topology(MAS::Topology::WEINBERG_CONVERTER);
             return result;
         }
     }
@@ -759,11 +759,11 @@ OpenMagnetics::Inputs process_weinberg_internal(const json& converterJson, bool 
         OpenMagnetics::Inputs result;
         result.set_design_requirements(designReqs);
         result.set_operating_points(operatingPoints);
-        result.get_mutable_design_requirements().set_topology(MAS::Topologies::WEINBERG_CONVERTER);
+        result.get_mutable_design_requirements().set_topology(MAS::Topology::WEINBERG_CONVERTER);
         return result;
     } else {
         OpenMagnetics::Inputs result = converter.process();
-        result.get_mutable_design_requirements().set_topology(MAS::Topologies::WEINBERG_CONVERTER);
+        result.get_mutable_design_requirements().set_topology(MAS::Topology::WEINBERG_CONVERTER);
         return result;
     }
 }
@@ -782,11 +782,11 @@ OpenMagnetics::Inputs process_clllc_internal(const json& converterJson, bool use
         OpenMagnetics::Inputs result;
         result.set_design_requirements(designReqs);
         result.set_operating_points(operatingPoints);
-        result.get_mutable_design_requirements().set_topology(MAS::Topologies::CLLLC_RESONANT_CONVERTER);
+        result.get_mutable_design_requirements().set_topology(MAS::Topology::CLLLC_RESONANT_CONVERTER);
         return result;
     } else {
         OpenMagnetics::Inputs result = converter.process();
-        result.get_mutable_design_requirements().set_topology(MAS::Topologies::CLLLC_RESONANT_CONVERTER);
+        result.get_mutable_design_requirements().set_topology(MAS::Topology::CLLLC_RESONANT_CONVERTER);
         return result;
     }
 }
@@ -801,7 +801,7 @@ OpenMagnetics::Inputs process_vienna_internal(const json& converterJson, bool us
     OpenMagnetics::AdvancedVienna converter(converterJson);
     converter._assertErrors = true;
     OpenMagnetics::Inputs result = converter.process();
-    result.get_mutable_design_requirements().set_topology(MAS::Topologies::VIENNA_RECTIFIER_CONVERTER);
+    result.get_mutable_design_requirements().set_topology(MAS::Topology::VIENNA_RECTIFIER_CONVERTER);
     return result;
 }
 
@@ -810,7 +810,7 @@ OpenMagnetics::Inputs process_src_internal(const json& converterJson, bool useNg
     OpenMagnetics::AdvancedSrc converter(converterJson);
     converter._assertErrors = true;
     OpenMagnetics::Inputs result = converter.process();
-    result.get_mutable_design_requirements().set_topology(MAS::Topologies::SERIES_RESONANT_CONVERTER);
+    result.get_mutable_design_requirements().set_topology(MAS::Topology::SERIES_RESONANT_CONVERTER);
     return result;
 }
 
@@ -2086,7 +2086,7 @@ json simulate_flyback_ideal_waveforms(json inputsJson) {
                 isolationSides.push_back(OpenMagnetics::get_isolation_side_from_index(w));
             }
             designRequirements.set_isolation_sides(isolationSides);
-            designRequirements.set_topology(MAS::Topologies::FLYBACK_CONVERTER);
+            designRequirements.set_topology(MAS::Topology::FLYBACK_CONVERTER);
 
             flybackPtr = std::move(advPtr);
         } else {
@@ -2300,10 +2300,10 @@ json func_name(json inputsJson) { \
     }
 
 DEFINE_SIMULATE_NON_ISOLATED(simulate_buck_ideal_waveforms, OpenMagnetics::Buck, OpenMagnetics::AdvancedBuck,
-    MAS::Topologies::BUCK_CONVERTER, "buckDiagnostics", BUCK_BOOST_DIAG_FLAT, BUCK_BOOST_DIAG_PEROP)
+    MAS::Topology::BUCK_CONVERTER, "buckDiagnostics", BUCK_BOOST_DIAG_FLAT, BUCK_BOOST_DIAG_PEROP)
 
 DEFINE_SIMULATE_NON_ISOLATED(simulate_boost_ideal_waveforms, OpenMagnetics::Boost, OpenMagnetics::AdvancedBoost,
-    MAS::Topologies::BOOST_CONVERTER, "boostDiagnostics", BUCK_BOOST_DIAG_FLAT, BUCK_BOOST_DIAG_PEROP)
+    MAS::Topology::BOOST_CONVERTER, "boostDiagnostics", BUCK_BOOST_DIAG_FLAT, BUCK_BOOST_DIAG_PEROP)
 
 #undef BUCK_BOOST_DIAG_FLAT
 #undef BUCK_BOOST_DIAG_PEROP
@@ -2374,7 +2374,7 @@ json simulate_sepic_ideal_waveforms(json inputsJson) {
             std::vector<OpenMagnetics::IsolationSide> isolationSides;
             isolationSides.push_back(OpenMagnetics::get_isolation_side_from_index(0));
             designRequirements.set_isolation_sides(isolationSides);
-            designRequirements.set_topology(MAS::Topologies::SEPIC_CONVERTER);
+            designRequirements.set_topology(MAS::Topology::SEPIC_CONVERTER);
             ptr = std::move(advPtr);
         } else {
             ptr = std::make_unique<OpenMagnetics::Sepic>(inputsJson);
@@ -2440,7 +2440,7 @@ json simulate_cuk_ideal_waveforms(json inputsJson) {
             std::vector<OpenMagnetics::IsolationSide> isolationSides;
             isolationSides.push_back(OpenMagnetics::get_isolation_side_from_index(0));
             designRequirements.set_isolation_sides(isolationSides);
-            designRequirements.set_topology(MAS::Topologies::CUK_CONVERTER);
+            designRequirements.set_topology(MAS::Topology::CUK_CONVERTER);
             ptr = std::move(advPtr);
         } else {
             ptr = std::make_unique<OpenMagnetics::Cuk>(inputsJson);
@@ -2512,7 +2512,7 @@ json simulate_zeta_ideal_waveforms(json inputsJson) {
             std::vector<OpenMagnetics::IsolationSide> isolationSides;
             isolationSides.push_back(OpenMagnetics::get_isolation_side_from_index(0));
             designRequirements.set_isolation_sides(isolationSides);
-            designRequirements.set_topology(MAS::Topologies::ZETA_CONVERTER);
+            designRequirements.set_topology(MAS::Topology::ZETA_CONVERTER);
             ptr = std::move(advPtr);
         } else {
             ptr = std::make_unique<OpenMagnetics::Zeta>(inputsJson);
@@ -2587,7 +2587,7 @@ json simulate_four_switch_buck_boost_ideal_waveforms(json inputsJson) {
             std::vector<OpenMagnetics::IsolationSide> isolationSides;
             isolationSides.push_back(OpenMagnetics::get_isolation_side_from_index(0));
             designRequirements.set_isolation_sides(isolationSides);
-            designRequirements.set_topology(MAS::Topologies::FOUR_SWITCH_BUCK_BOOST_CONVERTER);
+            designRequirements.set_topology(MAS::Topology::FOUR_SWITCH_BUCK_BOOST_CONVERTER);
             ptr = std::move(advPtr);
         } else {
             ptr = std::make_unique<OpenMagnetics::FourSwitchBuckBoost>(inputsJson);
@@ -2813,25 +2813,25 @@ json func_name(json inputsJson) { \
     }
 
 DEFINE_SIMULATE_ISOLATED(simulate_forward_ideal_waveforms, OpenMagnetics::SingleSwitchForward, OpenMagnetics::AdvancedSingleSwitchForward,
-    MAS::Topologies::SINGLE_SWITCH_FORWARD_CONVERTER, "singleSwitchForwardDiagnostics",
+    MAS::Topology::SINGLE_SWITCH_FORWARD_CONVERTER, "singleSwitchForwardDiagnostics",
     ptr->simulate_and_extract_topology_waveforms(turnsRatios, magnetizingInductance),
     ptr->simulate_and_extract_operating_points(turnsRatios, magnetizingInductance),
     SINGLE_SWITCH_FORWARD_DIAG_BLOCK)
 
 DEFINE_SIMULATE_ISOLATED(simulate_two_switch_forward_ideal_waveforms, OpenMagnetics::TwoSwitchForward, OpenMagnetics::AdvancedTwoSwitchForward,
-    MAS::Topologies::TWO_SWITCH_FORWARD_CONVERTER, "twoSwitchForwardDiagnostics",
+    MAS::Topology::TWO_SWITCH_FORWARD_CONVERTER, "twoSwitchForwardDiagnostics",
     ptr->simulate_and_extract_topology_waveforms(turnsRatios, magnetizingInductance),
     ptr->simulate_and_extract_operating_points(turnsRatios, magnetizingInductance),
     FORWARD_COMMON_DIAG_BLOCK("twoSwitchForwardDiagnostics"))
 
 DEFINE_SIMULATE_ISOLATED(simulate_active_clamp_forward_ideal_waveforms, OpenMagnetics::ActiveClampForward, OpenMagnetics::AdvancedActiveClampForward,
-    MAS::Topologies::ACTIVE_CLAMP_FORWARD_CONVERTER, "activeClampForwardDiagnostics",
+    MAS::Topology::ACTIVE_CLAMP_FORWARD_CONVERTER, "activeClampForwardDiagnostics",
     ptr->simulate_and_extract_topology_waveforms(turnsRatios, magnetizingInductance),
     ptr->simulate_and_extract_operating_points(turnsRatios, magnetizingInductance),
     FORWARD_COMMON_DIAG_BLOCK("activeClampForwardDiagnostics"))
 
 DEFINE_SIMULATE_ISOLATED(simulate_push_pull_ideal_waveforms, OpenMagnetics::PushPull, OpenMagnetics::AdvancedPushPull,
-    MAS::Topologies::PUSH_PULL_CONVERTER, "pushPullDiagnostics",
+    MAS::Topology::PUSH_PULL_CONVERTER, "pushPullDiagnostics",
     ptr->simulate_and_extract_topology_waveforms(turnsRatios, magnetizingInductance),
     ptr->simulate_and_extract_operating_points(turnsRatios, magnetizingInductance),
     { \
@@ -2866,13 +2866,13 @@ DEFINE_SIMULATE_ISOLATED(simulate_push_pull_ideal_waveforms, OpenMagnetics::Push
     })
 
 DEFINE_SIMULATE_ISOLATED(simulate_isolated_buck_ideal_waveforms, OpenMagnetics::IsolatedBuck, OpenMagnetics::AdvancedIsolatedBuck,
-    MAS::Topologies::ISOLATED_BUCK_CONVERTER, "isolatedBuckDiagnostics",
+    MAS::Topology::ISOLATED_BUCK_CONVERTER, "isolatedBuckDiagnostics",
     ptr->simulate_and_extract_topology_waveforms(turnsRatios, magnetizingInductance),
     ptr->simulate_and_extract_operating_points(turnsRatios, magnetizingInductance),
     ISOLATED_BUCK_DIAG_BLOCK("isolatedBuckDiagnostics"))
 
 DEFINE_SIMULATE_ISOLATED(simulate_isolated_buck_boost_ideal_waveforms, OpenMagnetics::IsolatedBuckBoost, OpenMagnetics::AdvancedIsolatedBuckBoost,
-    MAS::Topologies::ISOLATED_BUCK_BOOST_CONVERTER, "isolatedBuckBoostDiagnostics",
+    MAS::Topology::ISOLATED_BUCK_BOOST_CONVERTER, "isolatedBuckBoostDiagnostics",
     ptr->simulate_and_extract_topology_waveforms(turnsRatios, magnetizingInductance),
     ptr->simulate_and_extract_operating_points(turnsRatios, magnetizingInductance),
     ISOLATED_BUCK_DIAG_BLOCK("isolatedBuckBoostDiagnostics"))

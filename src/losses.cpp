@@ -335,7 +335,7 @@ json calculate_ac_resistance_coefficients_per_winding(json magneticJson, double 
         for (size_t windingIndex = 0; windingIndex < windings.size(); ++windingIndex) {
             auto wire = OpenMagnetics::Coil::resolve_wire(windings[windingIndex]);
             SignalDescriptor current;
-            Processed processed;
+            ProcessedWaveform processed;
             processed.set_effective_frequency(frequency);
             current.set_processed(processed);
 

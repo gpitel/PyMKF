@@ -226,6 +226,13 @@ add_custom_command(
     -S ${MKF_DIR}/PEAS/schemas/utils.json
     -S ${MKF_DIR}/PEAS/schemas/inputs/operatingPointExcitation.json
     -S ${MKF_DIR}/PEAS/schemas/outputs/insulationCoordination.json
+    # outputBase.json must precede/accompany lossElementPerHarmonic.json: the
+    # latter's allOf[0] is {"$ref": "./outputBase.json"}. On Linux quicktype
+    # resolves that relative ref off the file path, but on Windows the file-URI
+    # resolution yields an empty URI ("Could not fetch schema") and the build
+    # fails. Feeding outputBase.json as a source lets quicktype resolve it by
+    # $id (https://psma.com/peas/outputs/outputBase.json) on every platform.
+    -S ${MKF_DIR}/PEAS/schemas/outputs/outputBase.json
     -S ${MKF_DIR}/PEAS/schemas/outputs/lossElementPerHarmonic.json
     -S ${MAS_DIR}/schemas/magnetic.json
     -S ${MAS_DIR}/schemas/magnetic/core.json

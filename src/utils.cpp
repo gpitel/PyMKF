@@ -209,7 +209,7 @@ json standardize_signal_descriptor(json signalDescriptorJson, double frequency) 
 
 json create_waveform(json processedJson, double frequency) {
     try {
-        Processed processed(processedJson);
+        ProcessedWaveform processed(processedJson);
         auto waveform = OpenMagnetics::Inputs::create_waveform(processed, frequency);
         json result;
         to_json(result, waveform);
@@ -497,7 +497,7 @@ void register_utils_bindings(py::module& m) {
         Create a waveform from processed data.
 
         Args:
-            processed_json: JSON Processed object with waveform parameters.
+            processed_json: JSON ProcessedWaveform object with waveform parameters.
             frequency: Operating frequency in Hz.
 
         Returns:
@@ -514,7 +514,7 @@ void register_utils_bindings(py::module& m) {
             waveform_json: JSON Waveform object.
 
         Returns:
-            JSON Processed object with RMS, peak, offset, etc.
+            JSON ProcessedWaveform object with RMS, peak, offset, etc.
         )pbdoc",
         py::arg("harmonicsJson"), py::arg("waveformJson"));
 

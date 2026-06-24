@@ -670,7 +670,7 @@ void register_simulation_bindings(py::module& m) {
             inputs_json: Raw input JSON object with operating points.
         
         Returns:
-            Processed inputs JSON with calculated harmonics and processed data.
+            ProcessedWaveform inputs JSON with calculated harmonics and processed data.
         )pbdoc");
     
     m.def("extract_operating_point", &extract_operating_point,
