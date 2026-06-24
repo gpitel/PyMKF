@@ -32,17 +32,22 @@ json simulate(json inputsJson, json magneticJson, json modelsData) {
     }
 }
 
-ordered_json export_magnetic_as_subcircuit(json magneticJson) {
-    try {
-        OpenMagnetics::Magnetic magnetic(magneticJson);
-        ordered_json subcircuit = OpenMagnetics::CircuitSimulatorExporter().export_magnetic_as_subcircuit(magnetic);
-        return subcircuit.dump(4);
-    }
-    catch (const std::exception &exc) {
-        ordered_json exception;
-        exception["data"] = "Exception: " + std::string{exc.what()};
-        return exception;
-    }
+std::string export_magnetic_as_subcircuit(json magneticJson) {
+    // Returns the raw SPICE subcircuit netlist as a plain string. We must NOT
+    // return nlohmann::ordered_json here: pybind11_json registers a caster for
+    // nlohmann::json (std::map) but none for ordered_json (ordered_map), so any
+    // ordered_json return value is unconvertible to a Python type and raises on
+    // every call. Let bad input propagate as a real Python exception (pybind11
+    // translates std::exception → RuntimeError) instead of returning an in-band
+    // error value that the caller would write out as if it were a valid netlist.
+    //
+    // Use the NGSPICE exporter (not the default SIMBA model, which emits Simba
+    // component JSON): consumers of this binding need a real ".subckt ... .ends"
+    // SPICE subcircuit (e.g. the MAS MKF_MODEL path stamps it into
+    // magnetic.modelOutputs.spiceSubcircuit).
+    OpenMagnetics::Magnetic magnetic(magneticJson);
+    return OpenMagnetics::CircuitSimulatorExporter(OpenMagnetics::CircuitSimulatorExporterModels::NGSPICE)
+        .export_magnetic_as_subcircuit(magnetic);
 }
 
 json mas_autocomplete(json masJson, json configuration) {

@@ -8,7 +8,7 @@ namespace PyMKF {
 json simulate(json inputsJson, json magneticJson, json modelsData);
 
 // Export
-ordered_json export_magnetic_as_subcircuit(json magneticJson);
+std::string export_magnetic_as_subcircuit(json magneticJson);
 
 // Autocomplete
 json mas_autocomplete(json masJson, json configuration);
