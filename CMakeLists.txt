@@ -242,27 +242,52 @@ endif()
 
 message(STATUS "Compiling MAS")
 
+# Guard: quicktype must match the CI-pinned 23.x line (MKF ci.yml pins
+# quicktype@23.2.6). quicktype 26.0.0 silently drops properties inherited
+# via a top-level sibling $ref (draft 2020-12) — the pattern every wire
+# subtype uses to extend basicWire.json — so MAS.hpp generates with exit 0
+# but without InsulationWireCoating/CoatingDataOrNameUnion et al., and MKF
+# fails to compile much later with confusing C2065 errors.
+# NB: probe through the shell exactly like the add_custom_command below does.
+# find_program() is unreliable here: on Windows npm installs quicktype as
+# quicktype.cmd plus an extension-less bash shim, and find_program picks the
+# shim, which produces empty output when executed directly.
+if(WIN32)
+    set(_QUICKTYPE_VERSION_CMD cmd /c quicktype --version)
+else()
+    set(_QUICKTYPE_VERSION_CMD quicktype --version)
+endif()
+execute_process(
+    COMMAND ${_QUICKTYPE_VERSION_CMD}
+    RESULT_VARIABLE QUICKTYPE_VERSION_RESULT
+    OUTPUT_VARIABLE QUICKTYPE_VERSION_OUTPUT
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    ERROR_QUIET
+)
+if(NOT QUICKTYPE_VERSION_RESULT EQUAL 0)
+    message(FATAL_ERROR
+        "quicktype not found on PATH. MAS.hpp generation requires it. "
+        "Fix with: npm install -g quicktype@23.2.6")
+endif()
+if(NOT QUICKTYPE_VERSION_OUTPUT MATCHES "version 23\\.")
+    message(FATAL_ERROR
+        "quicktype 23.x required (CI pins quicktype@23.2.6); found: "
+        "'${QUICKTYPE_VERSION_OUTPUT}'. Newer versions silently drop "
+        "sibling-\$ref inherited schema properties. Fix with: "
+        "npm install -g quicktype@23.2.6")
+endif()
 
 add_custom_command(
   OUTPUT "${MAS_DIRECTORY}/MAS.hpp"
   # Force regeneration by removing output first
   COMMAND ${CMAKE_COMMAND} -E remove -f ${MAS_DIRECTORY}/MAS.hpp
   COMMAND quicktype -l c++ -s schema ${MAS_DIR}/schemas/MAS.json
-    # PEAS schemas: MAS main ($id https://psma.com/mas/...) now $refs shared
-    # PEAS primitives (https://psma.com/peas/...). quicktype resolves those
-    # external $refs by $id from sources passed with -S, so the PEAS schemas
-    # must be fed in here. PEAS is an MKF submodule at ${MKF_DIR}/PEAS.
-    -S ${MKF_DIR}/PEAS/schemas/utils.json
-    -S ${MKF_DIR}/PEAS/schemas/inputs/operatingPointExcitation.json
-    -S ${MKF_DIR}/PEAS/schemas/outputs/insulationCoordination.json
-    # outputBase.json must precede/accompany lossElementPerHarmonic.json: the
-    # latter's allOf[0] is {"$ref": "./outputBase.json"}. On Linux quicktype
-    # resolves that relative ref off the file path, but on Windows the file-URI
-    # resolution yields an empty URI ("Could not fetch schema") and the build
-    # fails. Feeding outputBase.json as a source lets quicktype resolve it by
-    # $id (https://psma.com/peas/outputs/outputBase.json) on every platform.
-    -S ${MKF_DIR}/PEAS/schemas/outputs/outputBase.json
-    -S ${MKF_DIR}/PEAS/schemas/outputs/lossElementPerHarmonic.json
+    # -S source order mirrors MKF/CMakeLists.txt exactly: quicktype type
+    # naming/unification is order-sensitive, and MKF sources (Coil.h etc.)
+    # are written against the names produced by that exact order.
+    # PEAS schemas resolve external $refs by $id (https://psma.com/peas/...)
+    # incl. outputBase.json, needed on Windows where relative file-URI
+    # resolution fails. PEAS is an MKF submodule at ${MKF_DIR}/PEAS.
     -S ${MAS_DIR}/schemas/magnetic.json
     -S ${MAS_DIR}/schemas/magnetic/core.json
     -S ${MAS_DIR}/schemas/magnetic/coil.json
@@ -303,28 +328,34 @@ add_custom_command(
     -S ${MAS_DIR}/schemas/inputs/topologies/isolatedBuck.json
     -S ${MAS_DIR}/schemas/inputs/topologies/isolatedBuckBoost.json
     -S ${MAS_DIR}/schemas/inputs/topologies/pushPull.json
+    -S ${MAS_DIR}/schemas/inputs/topologies/cllcResonant.json
     -S ${MAS_DIR}/schemas/inputs/topologies/dualActiveBridge.json
     -S ${MAS_DIR}/schemas/inputs/topologies/llcResonant.json
-    -S ${MAS_DIR}/schemas/inputs/topologies/cllcResonant.json
-    -S ${MAS_DIR}/schemas/inputs/topologies/clllcResonant.json
     -S ${MAS_DIR}/schemas/inputs/topologies/phaseShiftedFullBridge.json
     -S ${MAS_DIR}/schemas/inputs/topologies/phaseShiftedHalfBridge.json
+    -S ${MAS_DIR}/schemas/inputs/topologies/asymmetricHalfBridge.json
+    -S ${MAS_DIR}/schemas/inputs/topologies/cuk.json
+    -S ${MAS_DIR}/schemas/inputs/topologies/clllcResonant.json
     -S ${MAS_DIR}/schemas/inputs/topologies/powerFactorCorrection.json
     -S ${MAS_DIR}/schemas/inputs/topologies/commonModeChoke.json
     -S ${MAS_DIR}/schemas/inputs/topologies/differentialModeChoke.json
-    -S ${MAS_DIR}/schemas/inputs/topologies/asymmetricHalfBridge.json
-    -S ${MAS_DIR}/schemas/inputs/topologies/cuk.json
     -S ${MAS_DIR}/schemas/inputs/topologies/sepic.json
     -S ${MAS_DIR}/schemas/inputs/topologies/zeta.json
     -S ${MAS_DIR}/schemas/inputs/topologies/weinberg.json
     -S ${MAS_DIR}/schemas/inputs/topologies/fourSwitchBuckBoost.json
     -S ${MAS_DIR}/schemas/inputs/topologies/seriesResonant.json
     -S ${MAS_DIR}/schemas/inputs/topologies/vienna.json
+    -S ${MKF_DIR}/PEAS/schemas/utils.json
+    -S ${MKF_DIR}/PEAS/schemas/inputs/operatingPointExcitation.json
+    -S ${MKF_DIR}/PEAS/schemas/inputs/operatingConditions.json
+    -S ${MKF_DIR}/PEAS/schemas/outputs/insulationCoordination.json
+    -S ${MKF_DIR}/PEAS/schemas/outputs/lossElementPerHarmonic.json
+    -S ${MKF_DIR}/PEAS/schemas/outputs/outputBase.json
     -o ${MAS_DIRECTORY}/MAS.hpp --namespace MAS --source-style single-source --type-style pascal-case --member-style underscore-case --enumerator-style upper-underscore-case --no-boost
   USES_TERMINAL)
 
 add_custom_target(PyMASGeneration
-                  /bin/echo "RUNNING PyMASGeneration"
+                  ${CMAKE_COMMAND} -E echo "RUNNING PyMASGeneration"
                   DEPENDS "${MAS_DIRECTORY}/MAS.hpp")
 
 # ──────────────────────────────────────────────────────────────────
@@ -358,6 +389,7 @@ add_custom_command(
   DEPENDS
     "${CAS_DIR}/schemas/inputs.json"
     "${CAS_DIR}/schemas/inputs/designRequirements.json"
+    "${CAS_DIR}/schemas/capacitor.json"
     "${PEAS_DIR}/schemas/utils.json"
     "${PEAS_DIR}/schemas/inputs/twoTerminalOperatingPoint.json"
     "${PEAS_DIR}/schemas/inputs/operatingConditions.json"
@@ -365,7 +397,7 @@ add_custom_command(
   USES_TERMINAL)
 
 add_custom_target(PyCASGeneration
-                  /bin/echo "RUNNING PyCASGeneration"
+                  ${CMAKE_COMMAND} -E echo "RUNNING PyCASGeneration"
                   DEPENDS "${CAS_DIRECTORY}/CAS.hpp")
 add_dependencies(PyCASGeneration PyMASGeneration)
 include_directories("${CAS_DIRECTORY}")
