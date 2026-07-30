@@ -102,6 +102,14 @@ json get_settings() {
         }
         settingsJson["nanocrystallineStackingFactor"] = OpenMagnetics::settings.get_nanocrystalline_stacking_factor();
 
+        // Core
+        // Splits the main winding window into one per column (see
+        // Core::appendPerColumnWindingWindows). Needed for multi-column cores whose
+        // coil places groups in more than one window -- a group's windingWindow index
+        // is validated against the CORE's window count, so without this a two-window
+        // bobbin is rejected with INVALID_COIL_CONFIGURATION.
+        settingsJson["corePerColumnWindingWindows"] = OpenMagnetics::settings.get_core_per_column_winding_windows();
+
         // Painter
         settingsJson["painterNumberPointsX"] = OpenMagnetics::settings.get_painter_number_points_x();
         settingsJson["painterNumberPointsY"] = OpenMagnetics::settings.get_painter_number_points_y();
@@ -294,6 +302,9 @@ void set_settings(json settingsJson) {
             OpenMagnetics::settings.set_effective_parameter_standard(standard);
         }
         if (settingsJson.contains("nanocrystallineStackingFactor")) OpenMagnetics::settings.set_nanocrystalline_stacking_factor(settingsJson["nanocrystallineStackingFactor"]);
+
+        // Core
+        if (settingsJson.contains("corePerColumnWindingWindows")) OpenMagnetics::settings.set_core_per_column_winding_windows(settingsJson["corePerColumnWindingWindows"]);
 
         // Painter
         if (settingsJson.contains("painterNumberPointsX")) OpenMagnetics::settings.set_painter_number_points_x(settingsJson["painterNumberPointsX"]);
