@@ -279,8 +279,16 @@ endif()
 
 add_custom_command(
   OUTPUT "${MAS_DIRECTORY}/MAS.hpp"
-  # Force regeneration by removing output first
-  COMMAND ${CMAKE_COMMAND} -E remove -f ${MAS_DIRECTORY}/MAS.hpp
+  # Force regeneration by removing output first -- but into a temp DIRECTORY, so a
+  # failed generation leaves the previous MAS.hpp intact. Removing the real output up
+  # front means any quicktype failure also destroys the last good copy, leaving a
+  # retry with nothing to fall back on.
+  #
+  # It must be a temp DIRECTORY, not a temp filename: quicktype names the root class
+  # after the output file, so -o MAS.hpp.tmp yields "class MasHpp" instead of "class
+  # Mas" and MKF then fails with "'Mas': is not a member of 'MAS'".
+  COMMAND ${CMAKE_COMMAND} -E make_directory ${MAS_DIRECTORY}/tmp
+  COMMAND ${CMAKE_COMMAND} -E remove -f ${MAS_DIRECTORY}/tmp/MAS.hpp
   COMMAND quicktype -l c++ -s schema ${MAS_DIR}/schemas/MAS.json
     # -S source order mirrors MKF/CMakeLists.txt exactly: quicktype type
     # naming/unification is order-sensitive, and MKF sources (Coil.h etc.)
@@ -351,7 +359,17 @@ add_custom_command(
     -S ${MKF_DIR}/PEAS/schemas/outputs/insulationCoordination.json
     -S ${MKF_DIR}/PEAS/schemas/outputs/lossElementPerHarmonic.json
     -S ${MKF_DIR}/PEAS/schemas/outputs/outputBase.json
-    -o ${MAS_DIRECTORY}/MAS.hpp --namespace MAS --source-style single-source --type-style pascal-case --member-style underscore-case --enumerator-style upper-underscore-case --no-boost
+    -o ${MAS_DIRECTORY}/tmp/MAS.hpp --namespace MAS --source-style single-source --type-style pascal-case --member-style underscore-case --enumerator-style upper-underscore-case --no-boost
+  COMMAND ${CMAKE_COMMAND} -E rename ${MAS_DIRECTORY}/tmp/MAS.hpp ${MAS_DIRECTORY}/MAS.hpp
+  # NOTE: keep these -S paths ABSOLUTE. Passing them relative with a WORKING_DIRECTORY
+  # shortens the command line but breaks quicktype's resolution of the $refs INSIDE each
+  # schema (it reports "Could not fetch additional schema ."), because it then resolves
+  # them against the cwd rather than each file's own directory.
+  #
+  # Length matters here: cmd caps a command line at 8191 chars and reports only "The
+  # syntax of the command is incorrect". With LOCAL_MKF_DIR set these paths come to
+  # ~6.3k and fit; without it they resolve under build/<tag>/_deps/... and reach 8271,
+  # which fails. That is one more reason to build with LOCAL_MKF_DIR.
   USES_TERMINAL)
 
 add_custom_target(PyMASGeneration
