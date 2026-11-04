@@ -375,7 +375,7 @@ add_custom_command(
   USES_TERMINAL)
 
 add_custom_target(PyMASGeneration
-                  /bin/echo "RUNNING PyMASGeneration"
+                  ${CMAKE_COMMAND} -E echo "RUNNING PyMASGeneration"
                   DEPENDS "${MAS_DIRECTORY}/MAS.hpp")
 
 # ──────────────────────────────────────────────────────────────────
@@ -416,7 +416,7 @@ add_custom_command(
   USES_TERMINAL)
 
 add_custom_target(PyCASGeneration
-                  /bin/echo "RUNNING PyCASGeneration"
+                  ${CMAKE_COMMAND} -E echo "RUNNING PyCASGeneration"
                   DEPENDS "${CAS_DIRECTORY}/CAS.hpp")
 add_dependencies(PyCASGeneration PyMASGeneration)
 include_directories("${CAS_DIRECTORY}")
